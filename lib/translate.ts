@@ -19,19 +19,29 @@ function unwrapTranslation(data: unknown): string | null {
     const trimmed = data.trim();
     return trimmed || null;
   }
-  if (Array.isArray(data)) {
-    if (typeof data[0] === "string") {
-      const trimmed = data[0].trim();
-      return trimmed || null;
-    }
-    if (Array.isArray(data[0])) {
-      const joined = data[0]
-        .map((part) => (Array.isArray(part) ? String(part[0] ?? "") : ""))
-        .join("")
-        .trim();
-      return joined || null;
-    }
+  if (!Array.isArray(data) || data.length === 0) return null;
+
+  // Chrome dict: [["translated text", "en"]]
+  if (Array.isArray(data[0]) && typeof data[0][0] === "string") {
+    const trimmed = data[0][0].trim();
+    return trimmed || null;
   }
+
+  // Plain array of strings: ["translated text"]
+  if (typeof data[0] === "string") {
+    const trimmed = data[0].trim();
+    return trimmed || null;
+  }
+
+  // gtx: [[["chunk", ...], ["chunk2", ...]], ...]
+  if (Array.isArray(data[0])) {
+    const joined = data[0]
+      .map((part) => (Array.isArray(part) ? String(part[0] ?? "") : String(part ?? "")))
+      .join("")
+      .trim();
+    return joined || null;
+  }
+
   return null;
 }
 
