@@ -18,7 +18,7 @@ type NewsResponse = {
   error?: string;
 };
 
-const PER_BOARD = 8;
+const PER_BOARD = 6;
 
 function relativeTime(iso: string | null) {
   if (!iso) return "时间未知";
