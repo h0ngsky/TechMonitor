@@ -6,10 +6,6 @@ function cacheKey(text: string, to: TranslateTarget) {
   return `${to}::${text}`;
 }
 
-function targetLang(to: TranslateTarget) {
-  return to === "zh" ? "zh" : "en";
-}
-
 function shouldTranslate(text: string, to: TranslateTarget) {
   const sample = text.slice(0, 120);
   const hasCjk = /[\u3040-\u30ff\u3400-\u9fff]/.test(sample);
@@ -18,7 +14,54 @@ function shouldTranslate(text: string, to: TranslateTarget) {
   return hasCjk;
 }
 
-async function translateViaGoogle(text: string, to: TranslateTarget, signal?: AbortSignal) {
+function unwrapTranslation(data: unknown): string | null {
+  if (typeof data === "string") {
+    const trimmed = data.trim();
+    return trimmed || null;
+  }
+  if (Array.isArray(data)) {
+    if (typeof data[0] === "string") {
+      const trimmed = data[0].trim();
+      return trimmed || null;
+    }
+    if (Array.isArray(data[0])) {
+      const joined = data[0]
+        .map((part) => (Array.isArray(part) ? String(part[0] ?? "") : ""))
+        .join("")
+        .trim();
+      return joined || null;
+    }
+  }
+  return null;
+}
+
+async function translateViaChromeDict(
+  text: string,
+  to: TranslateTarget,
+  signal?: AbortSignal,
+) {
+  const url = new URL("https://clients5.google.com/translate_a/t");
+  url.searchParams.set("client", "dict-chrome-ex");
+  url.searchParams.set("sl", "auto");
+  url.searchParams.set("tl", to === "zh" ? "zh-CN" : "en");
+  url.searchParams.set("q", text);
+
+  const response = await fetch(url.toString(), {
+    signal,
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      accept: "application/json,text/plain,*/*",
+    },
+  });
+  if (!response.ok) throw new Error(`chrome-dict ${response.status}`);
+  const data = (await response.json()) as unknown;
+  const translated = unwrapTranslation(data);
+  if (!translated) throw new Error("chrome-dict empty");
+  return translated;
+}
+
+async function translateViaGtx(text: string, to: TranslateTarget, signal?: AbortSignal) {
   const url = new URL("https://translate.googleapis.com/translate_a/single");
   url.searchParams.set("client", "gtx");
   url.searchParams.set("sl", "auto");
@@ -33,57 +76,10 @@ async function translateViaGoogle(text: string, to: TranslateTarget, signal?: Ab
       accept: "application/json,text/plain,*/*",
     },
   });
-  if (!response.ok) throw new Error(`google ${response.status}`);
+  if (!response.ok) throw new Error(`gtx ${response.status}`);
   const data = (await response.json()) as unknown;
-  const chunks = Array.isArray(data) && Array.isArray(data[0]) ? data[0] : [];
-  const translated = chunks
-    .map((part) => (Array.isArray(part) ? String(part[0] ?? "") : ""))
-    .join("")
-    .trim();
-  if (!translated) throw new Error("google empty");
-  return translated;
-}
-
-async function translateViaLingva(text: string, to: TranslateTarget, signal?: AbortSignal) {
-  const hosts = ["https://lingva.ml", "https://lingva.garudalinux.org"];
-  const source = to === "zh" ? "en" : "zh";
-  const target = targetLang(to);
-  let lastError: Error | null = null;
-  for (const host of hosts) {
-    try {
-      const url = `${host}/api/v1/${source}/${target}/${encodeURIComponent(text)}`;
-      const response = await fetch(url, {
-        signal,
-        headers: { accept: "application/json" },
-      });
-      if (!response.ok) throw new Error(`lingva ${response.status}`);
-      const data = (await response.json()) as { translation?: string };
-      const translated = data.translation?.trim();
-      if (!translated) throw new Error("lingva empty");
-      return translated;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error("lingva failed");
-    }
-  }
-  throw lastError ?? new Error("lingva failed");
-}
-
-async function translateViaLibre(text: string, to: TranslateTarget, signal?: AbortSignal) {
-  const response = await fetch("https://libretranslate.com/translate", {
-    method: "POST",
-    signal,
-    headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({
-      q: text,
-      source: "auto",
-      target: targetLang(to),
-      format: "text",
-    }),
-  });
-  if (!response.ok) throw new Error(`libre ${response.status}`);
-  const data = (await response.json()) as { translatedText?: string };
-  const translated = data.translatedText?.trim();
-  if (!translated) throw new Error("libre empty");
+  const translated = unwrapTranslation(data);
+  if (!translated) throw new Error("gtx empty");
   return translated;
 }
 
@@ -92,12 +88,14 @@ async function translateOne(text: string, to: TranslateTarget, signal?: AbortSig
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const providers = [translateViaLingva, translateViaGoogle, translateViaLibre];
   let translated = text;
-  for (const provider of providers) {
+  for (const provider of [translateViaChromeDict, translateViaGtx]) {
     try {
-      translated = await provider(text, to, signal);
-      if (translated && translated !== text) break;
+      const result = await provider(text, to, signal);
+      if (result) {
+        translated = result;
+        break;
+      }
     } catch {
       // try next provider
     }
