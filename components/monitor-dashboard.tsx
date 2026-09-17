@@ -121,8 +121,6 @@ export function MonitorDashboard({
   }, [items]);
 
   const tickerItems = items.slice(0, 18);
-  const lead = filtered[0];
-  const rest = filtered.slice(1);
 
   return (
     <div className="relative flex w-full flex-col">
@@ -198,14 +196,11 @@ export function MonitorDashboard({
                 }
               />
             ) : (
-              <div className="space-y-0">
-                {lead ? <LeadStory item={lead} /> : null}
-                <ul>
-                  {rest.map((item, index) => (
-                    <NewsRow key={item.id} item={item} index={index} />
-                  ))}
-                </ul>
-              </div>
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {filtered.map((item, index) => (
+                  <NewsCard key={item.id} item={item} index={index} />
+                ))}
+              </ul>
             )}
           </section>
 
@@ -400,61 +395,43 @@ function CategoryNav({
   );
 }
 
-function LeadStory({ item }: { item: NewsItem }) {
-  return (
-    <a
-      href={item.link}
-      target="_blank"
-      rel="noreferrer"
-      className="group animate-rise mb-8 block border-b border-line pb-8"
-    >
-      <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] tracking-[0.18em] text-signal uppercase">
-        <span>{CATEGORY_LABELS[item.category]}</span>
-        <span className="text-fog">{item.sourceName}</span>
-        <span className="text-fog">{relativeTime(item.publishedAt)}</span>
-      </div>
-      <h3 className="mt-4 max-w-3xl font-display text-3xl leading-tight tracking-tight text-paper transition-colors group-hover:text-signal sm:text-5xl">
-        {item.title}
-      </h3>
-      {item.summary ? (
-        <p className="mt-4 max-w-2xl text-base leading-7 text-fog sm:text-lg">
-          {item.summary}
-        </p>
-      ) : null}
-      <span className="mt-5 inline-flex items-center gap-1 font-mono text-xs tracking-[0.16em] text-paper uppercase">
-        Open
-        <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-      </span>
-    </a>
-  );
-}
-
-function NewsRow({ item, index }: { item: NewsItem; index: number }) {
+function NewsCard({ item, index }: { item: NewsItem; index: number }) {
   return (
     <li
-      className="animate-rise border-b border-line/80"
+      className="animate-rise"
       style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
     >
       <a
         href={item.link}
         target="_blank"
         rel="noreferrer"
-        className="group grid gap-2 py-5 transition-colors sm:grid-cols-[7.5rem_1fr_auto] sm:items-baseline sm:gap-6"
+        className="group flex h-full flex-col rounded-xl border border-line bg-[#0c1711]/80 p-5 transition-colors hover:border-signal/45 hover:bg-[#102016]"
       >
-        <div className="font-mono text-[11px] tracking-[0.16em] text-signal uppercase">
-          {CATEGORY_LABELS[item.category]}
-        </div>
-        <div className="min-w-0">
-          <h3 className="font-display text-xl leading-snug tracking-tight text-paper transition-colors group-hover:text-signal sm:text-2xl">
-            {item.title}
-          </h3>
-          <p className="mt-2 text-sm text-fog">
-            {item.sourceName}
-            <span className="mx-2 opacity-40">·</span>
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] tracking-[0.16em] text-signal uppercase">
+          <span className="rounded-md bg-signal/12 px-2 py-1 text-signal">
+            {CATEGORY_LABELS[item.category]}
+          </span>
+          <span className="text-fog normal-case tracking-normal">
             {relativeTime(item.publishedAt)}
-          </p>
+          </span>
         </div>
-        <ArrowUpRight className="hidden size-4 text-fog transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-signal sm:block" />
+        <h3 className="mt-4 font-display text-xl leading-snug tracking-tight text-paper transition-colors group-hover:text-signal sm:text-[1.35rem]">
+          {item.title}
+        </h3>
+        {item.summary ? (
+          <p className="mt-3 line-clamp-3 flex-1 text-sm leading-6 text-fog">
+            {item.summary}
+          </p>
+        ) : (
+          <div className="flex-1" />
+        )}
+        <div className="mt-5 flex items-center justify-between gap-3 border-t border-line/70 pt-4">
+          <p className="truncate text-xs text-fog">{item.sourceName}</p>
+          <span className="inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.16em] text-paper uppercase">
+            Open
+            <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </span>
+        </div>
       </a>
     </li>
   );
@@ -507,13 +484,27 @@ function EmptyState({
 }
 
 function FeedSkeleton({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="space-y-2 border-b border-line/60 py-4">
+            <div className="h-3 w-24 bg-white/8" />
+            <div className="h-6 w-4/5 bg-white/8" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      {Array.from({ length: compact ? 4 : 6 }).map((_, index) => (
-        <div key={index} className="space-y-2 border-b border-line/60 py-4">
-          <div className="h-3 w-24 bg-white/8" />
+    <div className="grid gap-4 sm:grid-cols-2">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="space-y-3 rounded-xl border border-line p-5">
+          <div className="h-3 w-20 bg-white/8" />
+          <div className="h-6 w-full bg-white/8" />
           <div className="h-6 w-4/5 bg-white/8" />
-          {!compact ? <div className="h-4 w-full bg-white/5" /> : null}
+          <div className="h-16 w-full bg-white/5" />
         </div>
       ))}
     </div>
