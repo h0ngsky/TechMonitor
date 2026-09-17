@@ -141,3 +141,11 @@ export function relativeTime(iso: string | null, locale: Locale) {
 export function intlLocale(locale: Locale) {
   return locale === "zh" ? "zh-CN" : "en-US";
 }
+
+export function needsTranslation(text: string, to: Locale) {
+  const sample = text.slice(0, 120);
+  const hasCjk = /[\u3040-\u30ff\u3400-\u9fff]/.test(sample);
+  const latin = sample.replace(/[^A-Za-z]/g, "").length;
+  if (to === "zh") return !hasCjk && latin >= 8;
+  return hasCjk;
+}

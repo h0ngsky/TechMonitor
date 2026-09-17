@@ -1,5 +1,6 @@
 import { fetchFeedXml, parseFeed, type ParsedItem } from "@/lib/rss";
 import { BOARD_ORDER, NEWS_SOURCES, type NewsCategory } from "@/lib/sources";
+import { faviconForUrl, fetchOgImage } from "@/lib/og-image";
 
 export type NewsItem = ParsedItem & {
   id: string;
@@ -28,9 +29,11 @@ export type ScanSnapshot = {
 };
 
 const FEED_TIMEOUT_MS = 5500;
+const OG_TIMEOUT_MS = 3500;
 const MAX_ITEMS = 120;
 const MAX_PER_SOURCE = 8;
 const MAX_PER_CATEGORY = 30;
+const OG_CONCURRENCY = 8;
 
 declare global {
   var __newsMonitorSnapshot: ScanSnapshot | undefined;
@@ -144,10 +147,49 @@ function diversify(items: NewsItem[]) {
   return picked.slice(0, MAX_ITEMS);
 }
 
+async function enrichImages(items: NewsItem[]) {
+  const missing = items.filter((item) => !item.imageUrl);
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < missing.length) {
+      const current = missing[cursor];
+      cursor += 1;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), OG_TIMEOUT_MS);
+      try {
+        const og = await fetchOgImage(current.link, controller.signal);
+        if (og) {
+          current.imageUrl = og;
+          continue;
+        }
+      } catch {
+        // fall through to favicon
+      } finally {
+        clearTimeout(timer);
+      }
+      current.imageUrl = faviconForUrl(current.sourcePageUrl || current.link);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(OG_CONCURRENCY, Math.max(missing.length, 1)) }, () =>
+      worker(),
+    ),
+  );
+
+  for (const item of items) {
+    if (!item.imageUrl) item.imageUrl = faviconForUrl(item.sourcePageUrl || item.link);
+  }
+  return items;
+}
+
 export async function runNewsScan(): Promise<ScanSnapshot> {
   const settled = await Promise.all(NEWS_SOURCES.map((source) => scanSource(source)));
   const sources = settled.map((entry) => entry.result);
-  const items = diversify(dedupe(settled.flatMap((entry) => entry.items)));
+  const items = await enrichImages(
+    diversify(dedupe(settled.flatMap((entry) => entry.items))),
+  );
 
   const snapshot: ScanSnapshot = {
     scannedAt: new Date().toISOString(),

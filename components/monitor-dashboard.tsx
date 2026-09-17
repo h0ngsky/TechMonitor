@@ -15,6 +15,7 @@ import {
   MESSAGES,
   type Locale,
   intlLocale,
+  needsTranslation,
   readStoredLocale,
   relativeTime,
   storeLocale,
@@ -29,11 +30,13 @@ type NewsResponse = {
 
 const PER_BOARD = 6;
 
-function matchesQuery(item: NewsItem, query: string) {
+function matchesQuery(item: NewsItem, query: string, titleMap: Record<string, string>) {
   if (!query) return true;
   const q = query.toLowerCase();
+  const translated = titleMap[item.id] || item.title;
   return (
     item.title.toLowerCase().includes(q) ||
+    translated.toLowerCase().includes(q) ||
     item.summary.toLowerCase().includes(q) ||
     item.sourceName.toLowerCase().includes(q)
   );
@@ -56,6 +59,8 @@ export function MonitorDashboard({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [query, setQuery] = useState("");
+  const [titleMap, setTitleMap] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState(false);
   const refreshingRef = useRef(false);
 
   const t = MESSAGES[locale];
@@ -83,7 +88,7 @@ export function MonitorDashboard({
     setRefreshing(true);
     setError(null);
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 20000);
+    const timer = window.setTimeout(() => controller.abort(), 45000);
     try {
       const response = await fetch("/api/news", {
         method: "POST",
@@ -153,6 +158,59 @@ export function MonitorDashboard({
   }, [load, locale]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    async function run() {
+      const candidates = items.slice(0, 48);
+      const need = candidates.filter((item) => needsTranslation(item.title, locale));
+      if (need.length === 0) {
+        setTitleMap({});
+        setTranslating(false);
+        return;
+      }
+
+      setTranslating(true);
+      try {
+        const response = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            to: locale,
+            texts: need.map((item) => item.title),
+          }),
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as {
+          ok: boolean;
+          translations?: string[];
+        };
+        if (!response.ok || !payload.ok || !payload.translations) {
+          throw new Error("translate failed");
+        }
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        need.forEach((item, index) => {
+          const translated = payload.translations?.[index];
+          if (translated && translated !== item.title) next[item.id] = translated;
+        });
+        setTitleMap(next);
+      } catch {
+        if (!cancelled) setTitleMap({});
+      } finally {
+        if (!cancelled) setTranslating(false);
+      }
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [items, locale]);
+
   const q = query.trim();
 
   const boards = useMemo(
@@ -161,11 +219,11 @@ export function MonitorDashboard({
         key,
         label: categories[key],
         items: items
-          .filter((item) => item.category === key && matchesQuery(item, q))
+          .filter((item) => item.category === key && matchesQuery(item, q, titleMap))
           .slice(0, PER_BOARD),
         total: items.filter((item) => item.category === key).length,
       })),
-    [items, q, categories],
+    [items, q, categories, titleMap],
   );
 
   const tickerItems = items.slice(0, 16);
@@ -178,6 +236,7 @@ export function MonitorDashboard({
             <h1 className="m-brand">MONITOR</h1>
             <span style={{ color: "var(--m-fog)", fontSize: "0.85rem" }}>
               {t.tagline}
+              {translating ? (locale === "zh" ? " · 翻译中" : " · Translating") : ""}
             </span>
           </div>
           <div className="m-top-meta">
@@ -227,7 +286,9 @@ export function MonitorDashboard({
             {[...tickerItems, ...tickerItems].map((item, index) => (
               <span key={`${item.id}-${index}`} className="m-ticker-item">
                 <span className="m-ticker-cat">{categories[item.category]}</span>
-                <span className="m-ticker-title">{item.title}</span>
+                <span className="m-ticker-title">
+                  {titleMap[item.id] || item.title}
+                </span>
               </span>
             ))}
           </div>
@@ -310,7 +371,12 @@ export function MonitorDashboard({
                 ) : (
                   <ul className="m-list">
                     {board.items.map((item) => (
-                      <NewsRow key={item.id} item={item} locale={locale} />
+                      <NewsRow
+                        key={item.id}
+                        item={item}
+                        locale={locale}
+                        title={titleMap[item.id] || item.title}
+                      />
                     ))}
                   </ul>
                 )}
@@ -323,32 +389,41 @@ export function MonitorDashboard({
   );
 }
 
-function NewsRow({ item, locale }: { item: NewsItem; locale: Locale }) {
+function NewsRow({
+  item,
+  locale,
+  title,
+}: {
+  item: NewsItem;
+  locale: Locale;
+  title: string;
+}) {
   const imageSrc = proxiedImageUrl(item.imageUrl);
-  const [showThumb, setShowThumb] = useState(Boolean(imageSrc));
+  const [broken, setBroken] = useState(false);
+  const showImage = Boolean(imageSrc) && !broken;
 
   return (
     <li>
-      <a
-        className={`m-item${showThumb ? "" : " m-item--text"}`}
-        href={item.link}
-        target="_blank"
-        rel="noreferrer"
-      >
-        {showThumb ? (
-          <div className="m-thumb">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+      <a className="m-item" href={item.link} target="_blank" rel="noreferrer">
+        <div className="m-thumb">
+          {showImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
+              key={imageSrc}
               src={imageSrc!}
               alt=""
               loading="lazy"
               decoding="async"
-              onError={() => setShowThumb(false)}
+              onError={() => setBroken(true)}
             />
-          </div>
-        ) : null}
+          ) : (
+            <div className="m-thumb-fallback">
+              {CATEGORY_LABELS_I18N[locale][item.category]}
+            </div>
+          )}
+        </div>
         <div className="m-item-body">
-          <h3 className="m-item-title">{item.title}</h3>
+          <h3 className="m-item-title">{title}</h3>
           <p className="m-item-meta">
             {relativeTime(item.publishedAt, locale)} · {item.sourceName}
           </p>

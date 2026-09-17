@@ -4,6 +4,7 @@ export type ParsedItem = {
   summary: string;
   imageUrl: string | null;
   publishedAt: string | null;
+  sourcePageUrl: string | null;
 };
 
 function decodeXml(value: string) {
@@ -50,6 +51,12 @@ function matchLink(block: string) {
   const href = block.match(/<link[^>]*href=["']([^"']+)["'][^>]*\/?>/i);
   if (href) return href[1].trim();
   return matchTag(block, "link") || matchTag(block, "guid");
+}
+
+function matchSourceUrl(block: string) {
+  const tagged = block.match(/<source\b[^>]*\burl=["']([^"']+)["'][^>]*>/i);
+  if (tagged?.[1]) return tagged[1].trim();
+  return null;
 }
 
 function matchDate(block: string) {
@@ -156,6 +163,7 @@ export function parseFeed(xml: string): ParsedItem[] {
         summary: summary.slice(0, 280),
         imageUrl: matchImage(block),
         publishedAt: matchDate(block),
+        sourcePageUrl: matchSourceUrl(block),
       };
     })
     .filter((item) => item.title && item.link);
