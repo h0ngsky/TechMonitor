@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   formatInZone,
   isInScanWindow,
@@ -13,7 +11,6 @@ import {
 import {
   BOARD_ORDER,
   CATEGORY_LABELS,
-  type NewsCategory,
 } from "@/lib/sources";
 import type { NewsItem, ScanSnapshot, SourceScanResult } from "@/lib/scan";
 
@@ -134,9 +131,12 @@ export function MonitorDashboard({
 
   const visibleCount = boards.reduce((sum, board) => sum + board.items.length, 0);
   const tickerItems = items.slice(0, 16);
+  const counts = Object.fromEntries(
+    BOARD_ORDER.map((key) => [key, items.filter((item) => item.category === key).length]),
+  );
 
   return (
-    <div className="relative flex w-full flex-col pb-[env(safe-area-inset-bottom)]">
+    <div className="m-shell">
       <Hero
         inWindow={inWindow}
         nowLabel={nowLabel}
@@ -151,62 +151,74 @@ export function MonitorDashboard({
 
       {tickerItems.length > 0 ? <TickerRail items={tickerItems} /> : null}
 
-      <main className="mx-auto w-full max-w-[1280px] px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-20 pt-8 sm:px-6 md:pb-24 md:pt-10 lg:px-8">
-        <div className="mb-8 flex flex-col gap-5 md:mb-10 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
-              Boards
-            </p>
-            <h2 className="mt-2 font-display text-3xl tracking-tight text-paper md:text-5xl">
-              四大板块
-            </h2>
-            <p className="mt-2 text-sm text-fog md:text-base">科技 · AI · 金融 · 健康</p>
+      <main className="m-main">
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "1rem",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+            }}
+          >
+            <div>
+              <p className="m-kicker" style={{ color: "var(--m-signal)" }}>
+                Boards
+              </p>
+              <h2 className="m-section-title">四大板块</h2>
+              <p style={{ margin: "0.5rem 0 0", color: "var(--m-fog)", fontSize: "0.95rem" }}>
+                科技 · AI · 金融 · 健康
+              </p>
+            </div>
+            <label style={{ position: "relative", width: "100%", maxWidth: "24rem" }}>
+              <span className="sr-only">搜索新闻</span>
+              <Search
+                style={{
+                  position: "absolute",
+                  left: "0.75rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 16,
+                  height: 16,
+                  color: "var(--m-fog)",
+                  pointerEvents: "none",
+                }}
+              />
+              <input
+                className="m-search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索标题、摘要或来源"
+                aria-label="搜索新闻"
+              />
+            </label>
           </div>
-          <label className="relative w-full md:max-w-sm">
-            <span className="sr-only">搜索新闻</span>
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fog" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索标题、摘要或来源"
-              className="h-12 rounded-none border-0 border-b border-line bg-transparent pl-10 text-base text-paper shadow-none focus-visible:ring-0"
-            />
-          </label>
+
+          <CategoryNav
+            category={category}
+            onChange={setCategory}
+            total={items.length}
+            counts={counts}
+          />
         </div>
 
-        <CategoryNav
-          category={category}
-          onChange={setCategory}
-          total={items.length}
-          counts={Object.fromEntries(
-            BOARD_ORDER.map((key) => [
-              key,
-              items.filter((item) => item.category === key).length,
-            ]),
-          )}
-        />
-
         {error ? (
-          <div className="mt-8">
+          <div style={{ marginTop: "2rem" }}>
             <EmptyState
               title="巡检失败"
               detail={error}
               action={
-                <Button
-                  onClick={() => void load()}
-                  className="h-12 rounded-none bg-signal px-5 text-ink hover:bg-signal/90"
-                >
+                <button type="button" className="m-btn" onClick={() => void load()}>
                   重试
-                </Button>
+                </button>
               }
             />
           </div>
         ) : refreshing && !data ? (
-          <div className="mt-10">
-            <FeedSkeleton />
-          </div>
+          <p style={{ marginTop: "2.5rem", color: "var(--m-fog)" }}>正在巡检…</p>
         ) : visibleCount === 0 ? (
-          <div className="mt-8">
+          <div style={{ marginTop: "2rem" }}>
             <EmptyState
               title={items.length === 0 ? "还没有稿件" : "没有匹配结果"}
               detail={
@@ -217,7 +229,7 @@ export function MonitorDashboard({
             />
           </div>
         ) : (
-          <div className="mt-10 space-y-16 md:space-y-20">
+          <div>
             {boards.map((board) => (
               <BoardSection
                 key={board.key}
@@ -231,20 +243,22 @@ export function MonitorDashboard({
           </div>
         )}
 
-        <section className="mt-16 border-t border-line pt-10 md:mt-20">
-          <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
+        <section className="m-sources">
+          <p className="m-kicker" style={{ color: "var(--m-signal)" }}>
             Source Pulse
           </p>
-          <h2 className="mt-2 font-display text-2xl text-paper md:text-3xl">源站健康</h2>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-fog">{windowCopy()}</p>
-          <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-            {!data ? (
-              <FeedSkeleton compact />
-            ) : (
-              data.sources.map((source) => (
-                <SourcePulse key={source.sourceId} source={source} />
-              ))
-            )}
+          <h2 className="m-section-title" style={{ fontSize: "1.75rem" }}>
+            源站健康
+          </h2>
+          <p style={{ margin: "0.5rem 0 0", color: "var(--m-fog)", fontSize: "0.9rem" }}>
+            {windowCopy()}
+          </p>
+          <div className="m-source-grid">
+            {!data
+              ? null
+              : data.sources.map((source) => (
+                  <SourcePulse key={source.sourceId} source={source} />
+                ))}
           </div>
         </section>
       </main>
@@ -268,27 +282,34 @@ function BoardSection({
   if (items.length === 0) return null;
 
   return (
-    <section>
-      <div className="mb-6 flex items-end justify-between gap-4 border-b border-line pb-4">
+    <section className="m-board">
+      <div className="m-board-head">
         <div>
-          <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
+          <p className="m-kicker" style={{ color: "var(--m-signal)" }}>
             Board
           </p>
-          <h3 className="mt-1 font-display text-4xl tracking-tight text-paper md:text-5xl">
-            {title}
-          </h3>
+          <h3 className="m-board-name">{title}</h3>
         </div>
         <button
           type="button"
           onClick={onFocus}
-          className="font-mono text-xs tracking-[0.16em] text-fog uppercase transition-colors hover:text-signal"
+          style={{
+            border: 0,
+            background: "transparent",
+            color: "var(--m-fog)",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontSize: 12,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
         >
           {focused ? `${items.length} 条` : `共 ${count} 条 →`}
         </button>
       </div>
-      <ul className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-7">
-        {items.map((item, index) => (
-          <NewsCard key={item.id} item={item} index={index} large />
+      <ul className="m-grid">
+        {items.map((item) => (
+          <NewsCard key={item.id} item={item} />
         ))}
       </ul>
     </section>
@@ -317,91 +338,98 @@ function Hero({
   scannedAt: string;
 }) {
   return (
-    <section className="relative isolate min-h-[72vh] overflow-hidden border-b border-line pt-[env(safe-area-inset-top)] md:min-h-[68vh] lg:min-h-[82vh]">
-      <RadarField />
-
-      <div className="relative mx-auto flex min-h-[calc(72vh-env(safe-area-inset-top))] w-full max-w-[1280px] flex-col justify-between px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] py-7 sm:px-6 md:min-h-[68vh] md:py-9 lg:min-h-[82vh] lg:px-8 lg:py-10">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex min-w-0 items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-fog uppercase sm:gap-3 sm:text-[11px] sm:tracking-[0.24em]">
-            <span className="inline-flex size-2 shrink-0 animate-pulse-dot rounded-full bg-signal" />
-            <span className="truncate">{inWindow ? "Window Open" : "Standby"}</span>
-            <span className="hidden text-line sm:inline">/</span>
-            <span className="hidden sm:inline">Asia/Shanghai</span>
+    <section className="m-hero">
+      <div className="m-hero-inner">
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "space-between",
+            gap: "0.75rem",
+            alignItems: "center",
+          }}
+        >
+          <div className="m-kicker">
+            <span className="m-dot" />
+            <span>{inWindow ? "Window Open" : "Standby"}</span>
+            <span>/</span>
+            <span>Asia/Shanghai</span>
           </div>
-          <p className="font-mono text-xs text-paper/80 tabular-nums md:text-sm">{nowLabel}</p>
+          <p
+            style={{
+              margin: 0,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              fontSize: 13,
+              color: "rgba(237,245,232,0.8)",
+            }}
+          >
+            {nowLabel}
+          </p>
         </div>
 
-        <div className="max-w-4xl animate-rise py-8 md:py-12 lg:py-14">
-          <p className="font-display text-[clamp(3.25rem,14vw,9.5rem)] leading-[0.84] font-extrabold tracking-[-0.06em] text-paper md:text-[clamp(4.5rem,12vw,10rem)] lg:text-[clamp(5rem,11vw,11rem)]">
-            MONITOR
-          </p>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-paper/75 md:mt-5 md:text-lg md:leading-8 lg:text-xl">
-            科技、AI、金融、健康四大板块巡检，半点自动扫一遍。
-          </p>
-          <div className="mt-7 flex flex-col items-start gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center">
-            <Button
-              onClick={onScan}
-              disabled={refreshing}
-              className="h-12 min-w-[10.5rem] rounded-none bg-signal px-6 font-display text-base tracking-wide text-ink hover:bg-[#d7ff63] active:bg-[#e4ff8a]"
-            >
-              <RefreshCw className={refreshing ? "animate-spin" : ""} />
+        <div style={{ padding: "2rem 0" }}>
+          <p className="m-brand">MONITOR</p>
+          <p className="m-lead">科技、AI、金融、健康四大板块巡检，半点自动扫一遍。</p>
+          <div
+            style={{
+              marginTop: "1.75rem",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              alignItems: "center",
+            }}
+          >
+            <button type="button" className="m-btn" onClick={onScan} disabled={refreshing}>
+              <RefreshCw size={16} className={refreshing ? "animate-spin" : undefined} />
               {refreshing ? "扫描中" : "立即巡检"}
-            </Button>
-            <p className="font-mono text-xs text-fog md:text-[13px]">
+            </button>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                fontSize: 12,
+                color: "var(--m-fog)",
+              }}
+            >
               下次计划 {nextLabel}
             </p>
           </div>
         </div>
 
-        <dl className="grid grid-cols-2 gap-x-5 gap-y-5 border-t border-line pt-5 md:grid-cols-4 md:gap-x-6 md:pt-6">
-          <Metric label="最近巡检" value={scannedAt} />
-          <Metric label="稿件" value={String(itemCount)} />
-          <Metric label="源站" value={`${okSources}/${sourceCount || "—"}`} />
-          <Metric label="节奏" value="30 MIN" />
+        <dl className="m-metrics">
+          <div>
+            <dt>最近巡检</dt>
+            <dd>{scannedAt}</dd>
+          </div>
+          <div>
+            <dt>稿件</dt>
+            <dd>{itemCount}</dd>
+          </div>
+          <div>
+            <dt>源站</dt>
+            <dd>
+              {okSources}/{sourceCount || "—"}
+            </dd>
+          </div>
+          <div>
+            <dt>节奏</dt>
+            <dd>30 MIN</dd>
+          </div>
         </dl>
       </div>
     </section>
   );
 }
 
-function RadarField() {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute top-[-8%] right-[-28%] h-[58vh] w-[58vh] opacity-70 sm:top-[-5%] sm:right-[-14%] sm:h-[70vh] sm:w-[70vh] sm:opacity-90 md:right-[-10%] md:h-[74vh] md:w-[74vh] lg:right-[-8%] lg:h-[78vh] lg:w-[78vh] lg:opacity-100"
-    >
-      <div className="absolute inset-[8%] rounded-full border border-signal/10" />
-      <div className="absolute inset-[22%] rounded-full border border-signal/15" />
-      <div className="absolute inset-[36%] rounded-full border border-signal/20" />
-      <div className="absolute inset-[50%] rounded-full border border-signal/25" />
-      <div className="absolute inset-0 animate-radar-sweep rounded-full bg-[conic-gradient(from_0deg,transparent_0deg,rgba(200,245,66,0.18)_38deg,transparent_70deg)] opacity-80" />
-      <div className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal" />
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="font-mono text-[10px] tracking-[0.22em] text-fog uppercase">{label}</dt>
-      <dd className="mt-2 font-mono text-base text-paper tabular-nums md:text-lg lg:text-xl">{value}</dd>
-    </div>
-  );
-}
-
 function TickerRail({ items }: { items: NewsItem[] }) {
   const loop = [...items, ...items];
   return (
-    <div className="overflow-hidden border-b border-line bg-signal text-ink">
-      <div className="animate-ticker flex w-max gap-8 py-3 whitespace-nowrap md:gap-10 md:py-3.5">
+    <div className="m-ticker">
+      <div className="m-ticker-track">
         {loop.map((item, index) => (
-          <span key={`${item.id}-${index}`} className="inline-flex items-center gap-3 px-2">
-            <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase">
-              {CATEGORY_LABELS[item.category]}
-            </span>
-            <span className="font-display text-sm font-semibold tracking-tight md:text-[15px]">
-              {item.title}
-            </span>
+          <span key={`${item.id}-${index}`} className="m-ticker-item">
+            <span className="m-ticker-cat">{CATEGORY_LABELS[item.category]}</span>
+            <span className="m-ticker-title">{item.title}</span>
           </span>
         ))}
       </div>
@@ -430,61 +458,31 @@ function CategoryNav({
   ];
 
   return (
-    <div
-      role="tablist"
-      aria-label="新闻板块"
-      className="flex gap-1 overflow-x-auto overscroll-x-contain border-b border-line pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {options.map((option) => {
-        const active = category === option.value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(option.value)}
-            className={`relative min-h-12 shrink-0 px-4 py-3.5 font-display text-base tracking-wide transition-colors md:min-h-11 md:text-[15px] ${
-              active ? "text-signal" : "text-fog active:text-paper hover:text-paper"
-            }`}
-          >
-            {option.label}
-            <span className="ml-2 font-mono text-[11px] opacity-70">{option.count}</span>
-            {active ? (
-              <span className="absolute inset-x-3 -bottom-px h-0.5 bg-signal" />
-            ) : null}
-          </button>
-        );
-      })}
+    <div className="m-tabs" role="tablist" aria-label="新闻板块">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="tab"
+          aria-selected={category === option.value}
+          className="m-tab"
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+          <span style={{ marginLeft: "0.5rem", opacity: 0.7, fontFamily: "ui-monospace, monospace", fontSize: 11 }}>
+            {option.count}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }
 
-function NewsCard({
-  item,
-  index,
-  large = false,
-}: {
-  item: NewsItem;
-  index: number;
-  large?: boolean;
-}) {
+function NewsCard({ item }: { item: NewsItem }) {
   return (
-    <li
-      className="animate-rise"
-      style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
-    >
-      <a
-        href={item.link}
-        target="_blank"
-        rel="noreferrer"
-        className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-[#0c1711]/85 transition-colors active:border-signal/50 active:bg-[#102016] hover:border-signal/45 hover:bg-[#102016]"
-      >
-        <div
-          className={`relative overflow-hidden border-b border-line/70 bg-[#0a140f] ${
-            large ? "aspect-[16/10] md:aspect-[16/9]" : "aspect-[16/10]"
-          }`}
-        >
+    <li>
+      <a className="m-card" href={item.link} target="_blank" rel="noreferrer">
+        <div className="m-card-media">
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -492,7 +490,6 @@ function NewsCard({
               alt=""
               loading="lazy"
               referrerPolicy="no-referrer"
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               onError={(event) => {
                 event.currentTarget.style.display = "none";
                 const fallback = event.currentTarget.nextElementSibling;
@@ -500,42 +497,21 @@ function NewsCard({
               }}
             />
           ) : null}
-          <CoverFallback category={item.category} hidden={Boolean(item.imageUrl)} />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#0c1711] to-transparent" />
-          <span className="absolute top-4 left-4 rounded-md bg-ink/75 px-2.5 py-1.5 font-mono text-[11px] tracking-[0.16em] text-signal uppercase backdrop-blur-sm">
-            {CATEGORY_LABELS[item.category]}
-          </span>
+          <div className="m-card-fallback" hidden={Boolean(item.imageUrl)}>
+            <span>{CATEGORY_LABELS[item.category]}</span>
+          </div>
+          <span className="m-badge">{CATEGORY_LABELS[item.category]}</span>
         </div>
-
-        <div className={`flex flex-1 flex-col ${large ? "p-6 md:p-7" : "p-5"}`}>
-          <p className="font-mono text-[11px] text-fog md:text-xs">
-            {relativeTime(item.publishedAt)}
-          </p>
-          <h3
-            className={`mt-3 font-display leading-snug tracking-tight text-paper transition-colors group-active:text-signal group-hover:text-signal ${
-              large
-                ? "text-[1.45rem] md:text-[1.75rem]"
-                : "text-[1.2rem] md:text-[1.35rem]"
-            }`}
-          >
-            {item.title}
-          </h3>
-          {item.summary ? (
-            <p
-              className={`mt-3 flex-1 leading-7 text-fog ${
-                large ? "line-clamp-4 text-[15px] md:text-base" : "line-clamp-3 text-sm"
-              }`}
-            >
-              {item.summary}
+        <div className="m-card-body">
+          <p className="m-card-time">{relativeTime(item.publishedAt)}</p>
+          <h3 className="m-card-title">{item.title}</h3>
+          {item.summary ? <p className="m-card-summary">{item.summary}</p> : null}
+          <div className="m-card-foot">
+            <p style={{ margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {item.sourceName}
             </p>
-          ) : (
-            <div className="flex-1" />
-          )}
-          <div className="mt-6 flex items-center justify-between gap-3 border-t border-line/70 pt-4">
-            <p className="truncate text-sm text-fog">{item.sourceName}</p>
-            <span className="inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.16em] text-paper uppercase">
-              Open
-              <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <span className="m-open">
+              Open <ArrowUpRight size={14} style={{ display: "inline", verticalAlign: "middle" }} />
             </span>
           </div>
         </div>
@@ -544,48 +520,29 @@ function NewsCard({
   );
 }
 
-function CoverFallback({
-  category,
-  hidden,
-}: {
-  category: NewsCategory;
-  hidden?: boolean;
-}) {
-  return (
-    <div
-      hidden={hidden}
-      className="absolute inset-0 flex items-end bg-[radial-gradient(circle_at_20%_20%,rgba(200,245,66,0.18),transparent_42%),linear-gradient(135deg,#102016,#07110c_60%)] p-6"
-    >
-      <p className="font-display text-5xl tracking-tight text-paper/25 md:text-6xl">
-        {CATEGORY_LABELS[category]}
-      </p>
-    </div>
-  );
-}
-
 function SourcePulse({ source }: { source: SourceScanResult }) {
   const strength = Math.min(12, source.itemCount) / 12;
   return (
-    <div className="border-b border-line/70 py-3.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm text-paper">{source.sourceName}</p>
-          <p className="mt-1 font-mono text-[10px] tracking-[0.18em] text-fog uppercase">
-            {CATEGORY_LABELS[source.category]}
-          </p>
+    <div className="m-source">
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
+        <div style={{ minWidth: 0 }}>
+          <p className="m-source-name">{source.sourceName}</p>
+          <p className="m-source-meta">{CATEGORY_LABELS[source.category]}</p>
         </div>
         <p
-          className={`font-mono text-xs ${source.ok ? "text-signal" : "text-destructive"}`}
+          style={{
+            margin: 0,
+            fontFamily: "ui-monospace, monospace",
+            fontSize: 12,
+            color: source.ok ? "var(--m-signal)" : "#ff6b4a",
+          }}
           title={source.error}
         >
           {source.ok ? `${source.itemCount}` : "FAIL"}
         </p>
       </div>
-      <div className="mt-3 h-1 bg-white/5">
-        <div
-          className={`h-full ${source.ok ? "bg-signal" : "bg-destructive"}`}
-          style={{ width: source.ok ? `${Math.max(8, strength * 100)}%` : "100%" }}
-        />
+      <div className="m-bar">
+        <span style={{ width: source.ok ? `${Math.max(8, strength * 100)}%` : "100%", background: source.ok ? undefined : "#ff6b4a" }} />
       </div>
     </div>
   );
@@ -601,41 +558,21 @@ function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-start gap-3 border border-dashed border-line px-6 py-16">
-      <p className="font-display text-2xl text-paper">{title}</p>
-      <p className="max-w-md text-sm leading-6 text-fog">{detail}</p>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: "0.75rem",
+        border: "1px dashed var(--m-line)",
+        padding: "3rem 1.5rem",
+      }}
+    >
+      <p style={{ margin: 0, fontSize: "1.5rem", color: "var(--m-paper)" }}>{title}</p>
+      <p style={{ margin: 0, maxWidth: "28rem", color: "var(--m-fog)", fontSize: "0.9rem", lineHeight: 1.6 }}>
+        {detail}
+      </p>
       {action}
-    </div>
-  );
-}
-
-function FeedSkeleton({ compact = false }: { compact?: boolean }) {
-  if (compact) {
-    return (
-      <div className="space-y-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="space-y-2 border-b border-line/60 py-4">
-            <div className="h-3 w-24 bg-white/8" />
-            <div className="h-6 w-4/5 bg-white/8" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="overflow-hidden rounded-2xl border border-line">
-          <div className="aspect-[16/9] bg-white/5" />
-          <div className="space-y-3 p-6">
-            <div className="h-3 w-20 bg-white/8" />
-            <div className="h-7 w-full bg-white/8" />
-            <div className="h-7 w-4/5 bg-white/8" />
-            <div className="h-20 w-full bg-white/5" />
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
