@@ -50,8 +50,9 @@ export function formatInZone(
     minute: "2-digit",
     hourCycle: "h23",
   },
+  locale: string = "zh-CN",
 ) {
-  return new Intl.DateTimeFormat("zh-CN", { timeZone: MONITOR_TZ, ...options }).format(date);
+  return new Intl.DateTimeFormat(locale, { timeZone: MONITOR_TZ, ...options }).format(date);
 }
 
 export function isInScanWindow(date = new Date()) {
@@ -60,31 +61,39 @@ export function isInScanWindow(date = new Date()) {
   return minutes >= WINDOW_START_MINUTES && minutes <= WINDOW_END_MINUTES;
 }
 
-export function nextScanAt(date = new Date()) {
+export function nextScanAt(
+  date = new Date(),
+  labels: { today: string; tomorrow: string } = {
+    today: "今天",
+    tomorrow: "明天",
+  },
+) {
   const parts = getClockParts(date);
   const minutes = parts.hour * 60 + parts.minute;
 
   if (minutes > WINDOW_END_MINUTES) {
-    return "明天 09:00";
+    return `${labels.tomorrow} 09:00`;
   }
 
   if (minutes < WINDOW_START_MINUTES) {
-    return "今天 09:00";
+    return `${labels.today} 09:00`;
   }
 
   const remainder = parts.minute % 30;
   const add = remainder === 0 && parts.second === 0 ? 30 : 30 - remainder;
   const nextTotal = minutes + add;
   if (nextTotal > WINDOW_END_MINUTES) {
-    return "明天 09:00";
+    return `${labels.tomorrow} 09:00`;
   }
   const h = Math.floor(nextTotal / 60)
     .toString()
     .padStart(2, "0");
   const m = (nextTotal % 60).toString().padStart(2, "0");
-  return `今天 ${h}:${m}`;
+  return `${labels.today} ${h}:${m}`;
 }
 
-export function windowCopy() {
-  return "每天 09:00–20:00（北京时间），每 15 分钟巡检一次";
+export function windowCopy(locale: "zh" | "en" = "zh") {
+  return locale === "en"
+    ? "Daily 09:00–20:00 (Beijing time), every 15 minutes"
+    : "每天 09:00–20:00（北京时间），每 15 分钟巡检一次";
 }

@@ -60,6 +60,21 @@ img { max-width: 100%; height: auto; display: block; }
   width: 8px; height: 8px; border-radius: 999px; background: var(--m-signal);
   display: inline-block;
 }
+.m-lang {
+  display: inline-flex; align-items: stretch; border: 1px solid var(--m-line);
+  border-radius: 0.35rem; overflow: hidden; background: rgba(12,23,17,0.85);
+}
+.m-lang-btn {
+  appearance: none; border: 0; margin: 0; cursor: pointer;
+  padding: 0.35rem 0.7rem; min-height: 2.1rem;
+  background: transparent; color: var(--m-fog);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+}
+.m-lang-btn + .m-lang-btn { border-left: 1px solid var(--m-line); }
+.m-lang-btn.is-active {
+  background: var(--m-signal); color: var(--m-ink);
+}
 .m-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
   height: 2.5rem; padding: 0 1rem; border: 0; border-radius: 0;

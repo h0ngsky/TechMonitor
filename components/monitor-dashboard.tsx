@@ -1,15 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import {
   formatInZone,
   isInScanWindow,
   nextScanAt,
 } from "@/lib/clock";
-import { BOARD_ORDER, CATEGORY_LABELS } from "@/lib/sources";
+import { BOARD_ORDER } from "@/lib/sources";
 import { proxiedImageUrl } from "@/lib/image";
 import type { NewsItem, ScanSnapshot } from "@/lib/scan";
+import {
+  CATEGORY_LABELS_I18N,
+  MESSAGES,
+  type Locale,
+  intlLocale,
+  readStoredLocale,
+  relativeTime,
+  storeLocale,
+} from "@/lib/i18n";
 
 type NewsResponse = {
   ok: boolean;
@@ -19,16 +28,27 @@ type NewsResponse = {
 };
 
 const PER_BOARD = 6;
+const localeListeners = new Set<() => void>();
+let localeMemory: Locale | null = null;
 
-function relativeTime(iso: string | null) {
-  if (!iso) return "时间未知";
-  const delta = Date.now() - Date.parse(iso);
-  const minutes = Math.max(0, Math.round(delta / 60000));
-  if (minutes < 1) return "刚刚";
-  if (minutes < 60) return `${minutes} 分钟前`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  return `${Math.round(hours / 24)} 天前`;
+function getLocaleSnapshot(): Locale {
+  if (localeMemory) return localeMemory;
+  return readStoredLocale() ?? "zh";
+}
+
+function getServerLocaleSnapshot(): Locale {
+  return "zh";
+}
+
+function subscribeLocale(listener: () => void) {
+  localeListeners.add(listener);
+  return () => localeListeners.delete(listener);
+}
+
+function setLocalePreference(next: Locale) {
+  localeMemory = next;
+  storeLocale(next);
+  localeListeners.forEach((listener) => listener());
 }
 
 function matchesQuery(item: NewsItem, query: string) {
@@ -50,6 +70,11 @@ export function MonitorDashboard({
   initialInWindow: boolean;
   initialError?: string | null;
 }) {
+  const locale = useSyncExternalStore(
+    subscribeLocale,
+    getLocaleSnapshot,
+    getServerLocaleSnapshot,
+  );
   const [data, setData] = useState<ScanSnapshot | null>(initialSnapshot);
   const [inWindow, setInWindow] = useState(initialInWindow);
   const [nextLabel, setNextLabel] = useState("—");
@@ -57,6 +82,13 @@ export function MonitorDashboard({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [query, setQuery] = useState("");
+
+  const t = MESSAGES[locale];
+  const categories = CATEGORY_LABELS_I18N[locale];
+
+  useEffect(() => {
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+  }, [locale]);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -73,28 +105,39 @@ export function MonitorDashboard({
       setInWindow(Boolean(payload.inWindow));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "无法完成巡检");
+      setError(
+        err instanceof Error ? err.message : MESSAGES[locale].scanErrorFallback,
+      );
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     const tick = () => {
       const now = new Date();
       setNowLabel(
-        formatInZone(now, {
-          month: "2-digit",
-          day: "2-digit",
-          weekday: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hourCycle: "h23",
-        }),
+        formatInZone(
+          now,
+          {
+            month: "2-digit",
+            day: "2-digit",
+            weekday: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hourCycle: "h23",
+          },
+          intlLocale(locale),
+        ),
       );
       setInWindow(isInScanWindow(now));
-      setNextLabel(nextScanAt(now));
+      setNextLabel(
+        nextScanAt(now, {
+          today: MESSAGES[locale].today,
+          tomorrow: MESSAGES[locale].tomorrow,
+        }),
+      );
     };
     tick();
     const clock = window.setInterval(tick, 1000);
@@ -105,7 +148,7 @@ export function MonitorDashboard({
       window.clearInterval(clock);
       window.clearInterval(patrol);
     };
-  }, [load]);
+  }, [load, locale]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
   const q = query.trim();
@@ -114,13 +157,13 @@ export function MonitorDashboard({
     () =>
       BOARD_ORDER.map((key) => ({
         key,
-        label: CATEGORY_LABELS[key],
+        label: categories[key],
         items: items
           .filter((item) => item.category === key && matchesQuery(item, q))
           .slice(0, PER_BOARD),
         total: items.filter((item) => item.category === key).length,
       })),
-    [items, q],
+    [items, q, categories],
   );
 
   const tickerItems = items.slice(0, 16);
@@ -132,19 +175,39 @@ export function MonitorDashboard({
           <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
             <h1 className="m-brand">MONITOR</h1>
             <span style={{ color: "var(--m-fog)", fontSize: "0.85rem" }}>
-              科技 / AI / 金融 / 健康
+              {t.tagline}
             </span>
           </div>
           <div className="m-top-meta">
+            <div className="m-lang" role="group" aria-label={t.langAria}>
+              <button
+                type="button"
+                className={`m-lang-btn${locale === "zh" ? " is-active" : ""}`}
+                onClick={() => setLocalePreference("zh")}
+                aria-pressed={locale === "zh"}
+              >
+                中文
+              </button>
+              <button
+                type="button"
+                className={`m-lang-btn${locale === "en" ? " is-active" : ""}`}
+                onClick={() => setLocalePreference("en")}
+                aria-pressed={locale === "en"}
+              >
+                EN
+              </button>
+            </div>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <span className="m-dot" />
-              {inWindow ? "巡检中" : "待命"}
+              {inWindow ? t.scanning : t.standby}
             </span>
             <span>{nowLabel}</span>
-            <span>下次 {nextLabel}</span>
+            <span>
+              {t.next} {nextLabel}
+            </span>
             <button type="button" className="m-btn" onClick={() => void load()} disabled={refreshing}>
               <RefreshCw size={14} />
-              {refreshing ? "扫描中" : "立即巡检"}
+              {refreshing ? t.scanningBtn : t.scanNow}
             </button>
           </div>
         </div>
@@ -155,7 +218,7 @@ export function MonitorDashboard({
           <div className="m-ticker-track">
             {[...tickerItems, ...tickerItems].map((item, index) => (
               <span key={`${item.id}-${index}`} className="m-ticker-item">
-                <span className="m-ticker-cat">{CATEGORY_LABELS[item.category]}</span>
+                <span className="m-ticker-cat">{categories[item.category]}</span>
                 <span className="m-ticker-title">{item.title}</span>
               </span>
             ))}
@@ -167,20 +230,35 @@ export function MonitorDashboard({
         <div className="m-toolbar">
           <div className="m-stats">
             <span>
-              最近 <strong>{data ? formatInZone(new Date(data.scannedAt)) : "—"}</strong>
+              {t.lastScan}{" "}
+              <strong>
+                {data
+                  ? formatInZone(
+                      new Date(data.scannedAt),
+                      {
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hourCycle: "h23",
+                      },
+                      intlLocale(locale),
+                    )
+                  : "—"}
+              </strong>
             </span>
             <span>
-              稿件 <strong>{data?.itemCount ?? 0}</strong>
+              {t.stories} <strong>{data?.itemCount ?? 0}</strong>
             </span>
             <span>
-              源站{" "}
+              {t.sources}{" "}
               <strong>
                 {data?.okSourceCount ?? 0}/{data?.sourceCount ?? "—"}
               </strong>
             </span>
           </div>
           <label className="m-search-wrap">
-            <span className="sr-only">搜索新闻</span>
+            <span className="sr-only">{t.searchAria}</span>
             <Search
               size={14}
               style={{
@@ -196,21 +274,21 @@ export function MonitorDashboard({
               className="m-search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索…"
-              aria-label="搜索新闻"
+              placeholder={t.search}
+              aria-label={t.searchAria}
             />
           </label>
         </div>
 
         {error ? (
           <p className="m-empty">
-            巡检失败：{error}{" "}
+            {t.scanFailed}：{error}{" "}
             <button type="button" className="m-btn" onClick={() => void load()}>
-              重试
+              {t.retry}
             </button>
           </p>
         ) : refreshing && !data ? (
-          <p className="m-empty">正在巡检…</p>
+          <p className="m-empty">{t.scanningEllipsis}</p>
         ) : (
           <div className="m-boards">
             {boards.map((board) => (
@@ -220,11 +298,11 @@ export function MonitorDashboard({
                   <span className="m-board-count">{board.total}</span>
                 </div>
                 {board.items.length === 0 ? (
-                  <p className="m-empty">暂无稿件</p>
+                  <p className="m-empty">{t.emptyBoard}</p>
                 ) : (
                   <ul className="m-list">
                     {board.items.map((item) => (
-                      <NewsRow key={item.id} item={item} />
+                      <NewsRow key={item.id} item={item} locale={locale} />
                     ))}
                   </ul>
                 )}
@@ -237,7 +315,7 @@ export function MonitorDashboard({
   );
 }
 
-function NewsRow({ item }: { item: NewsItem }) {
+function NewsRow({ item, locale }: { item: NewsItem; locale: Locale }) {
   const imageSrc = proxiedImageUrl(item.imageUrl);
   const [showThumb, setShowThumb] = useState(Boolean(imageSrc));
 
@@ -264,7 +342,7 @@ function NewsRow({ item }: { item: NewsItem }) {
         <div className="m-item-body">
           <h3 className="m-item-title">{item.title}</h3>
           <p className="m-item-meta">
-            {relativeTime(item.publishedAt)} · {item.sourceName}
+            {relativeTime(item.publishedAt, locale)} · {item.sourceName}
           </p>
         </div>
       </a>
