@@ -15,7 +15,9 @@ npm run dev
 
 项目已按 Next.js 配置。Hobby 套餐的 Vercel Cron 每天只能跑一次，因此 `vercel.json` 里是北京时间 **09:00**（UTC `0 1 * * *`）的一次巡检。
 
-半点巡检由 GitHub Actions 调用 `/api/cron/scan` 完成（09:00–20:00 北京时间）。打开网页或点「立即巡检」也会立刻拉取。升级 Vercel Pro 后，可以把 Cron 改回 `0,30 1-12 * * *`。
+半点巡检由 GitHub Actions 调用 `/api/cron/scan` 完成（北京时间 09:00–20:00，**每 15 分钟**一次）。打开网页或点「立即巡检」也会立刻拉取。升级 Vercel Pro 后，可以把平台 Cron 也调高。
+
+每次巡检只是拉取公开 RSS，耗时很短，资源占用很低。
 
 建议设置环境变量 `CRON_SECRET`；GitHub Actions 里同步配置同名 secret，请求会带 `Authorization: Bearer`。
 
@@ -25,6 +27,7 @@ npm run dev
 
 ## 接口
 
-- `GET /api/news`：读取最近一次巡检（25 分钟内复用缓存）
+- `GET /api/news`：读取最近一次巡检（约 12 分钟内复用缓存）
 - `POST /api/news`：强制重新巡检
-- `GET /api/cron/scan`：Vercel 定时任务入口
+- `GET /api/cron/scan`：定时巡检入口
+- `GET /api/img?u=`：图片代理（方便 iPad/国内访问外链封面）

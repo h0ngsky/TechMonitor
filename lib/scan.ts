@@ -136,7 +136,7 @@ export function getCachedSnapshot() {
 export async function getLatestSnapshot(force = false) {
   if (!force && globalThis.__newsMonitorSnapshot) {
     const age = Date.now() - Date.parse(globalThis.__newsMonitorSnapshot.scannedAt);
-    if (age < 25 * 60 * 1000) return globalThis.__newsMonitorSnapshot;
+    if (age < 12 * 60 * 1000) return globalThis.__newsMonitorSnapshot;
   }
   return runNewsScan();
 }

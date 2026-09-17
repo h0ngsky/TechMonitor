@@ -86,5 +86,5 @@ export function nextScanAt(date = new Date()) {
 }
 
 export function windowCopy() {
-  return "每天 09:00–20:00（北京时间），每 30 分钟巡检一次";
+  return "每天 09:00–20:00（北京时间），每 15 分钟巡检一次";
 }

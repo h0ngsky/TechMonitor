@@ -8,6 +8,7 @@ import {
   nextScanAt,
 } from "@/lib/clock";
 import { BOARD_ORDER, CATEGORY_LABELS } from "@/lib/sources";
+import { proxiedImageUrl } from "@/lib/image";
 import type { NewsItem, ScanSnapshot } from "@/lib/scan";
 
 type NewsResponse = {
@@ -99,7 +100,7 @@ export function MonitorDashboard({
     const clock = window.setInterval(tick, 1000);
     const patrol = window.setInterval(() => {
       if (isInScanWindow()) void load();
-    }, 30 * 60 * 1000);
+    }, 15 * 60 * 1000);
     return () => {
       window.clearInterval(clock);
       window.clearInterval(patrol);
@@ -237,17 +238,18 @@ export function MonitorDashboard({
 }
 
 function NewsRow({ item }: { item: NewsItem }) {
+  const imageSrc = proxiedImageUrl(item.imageUrl);
   return (
     <li>
       <a className="m-item" href={item.link} target="_blank" rel="noreferrer">
         <div className="m-thumb">
-          {item.imageUrl ? (
+          {imageSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={item.imageUrl}
+              src={imageSrc}
               alt=""
               loading="lazy"
-              referrerPolicy="no-referrer"
+              decoding="async"
               onError={(event) => {
                 event.currentTarget.style.display = "none";
                 const fallback = event.currentTarget.nextElementSibling;
@@ -255,7 +257,7 @@ function NewsRow({ item }: { item: NewsItem }) {
               }}
             />
           ) : null}
-          <div className="m-thumb-fallback" hidden={Boolean(item.imageUrl)}>
+          <div className="m-thumb-fallback" hidden={Boolean(imageSrc)}>
             {CATEGORY_LABELS[item.category]}
           </div>
         </div>
