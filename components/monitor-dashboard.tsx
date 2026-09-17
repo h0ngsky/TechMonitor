@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import {
   formatInZone,
@@ -28,28 +28,6 @@ type NewsResponse = {
 };
 
 const PER_BOARD = 6;
-const localeListeners = new Set<() => void>();
-let localeMemory: Locale | null = null;
-
-function getLocaleSnapshot(): Locale {
-  if (localeMemory) return localeMemory;
-  return readStoredLocale() ?? "zh";
-}
-
-function getServerLocaleSnapshot(): Locale {
-  return "zh";
-}
-
-function subscribeLocale(listener: () => void) {
-  localeListeners.add(listener);
-  return () => localeListeners.delete(listener);
-}
-
-function setLocalePreference(next: Locale) {
-  localeMemory = next;
-  storeLocale(next);
-  localeListeners.forEach((listener) => listener());
-}
 
 function matchesQuery(item: NewsItem, query: string) {
   if (!query) return true;
@@ -70,11 +48,7 @@ export function MonitorDashboard({
   initialInWindow: boolean;
   initialError?: string | null;
 }) {
-  const locale = useSyncExternalStore(
-    subscribeLocale,
-    getLocaleSnapshot,
-    getServerLocaleSnapshot,
-  );
+  const [locale, setLocale] = useState<Locale>("zh");
   const [data, setData] = useState<ScanSnapshot | null>(initialSnapshot);
   const [inWindow, setInWindow] = useState(initialInWindow);
   const [nextLabel, setNextLabel] = useState("—");
@@ -87,8 +61,20 @@ export function MonitorDashboard({
   const categories = CATEGORY_LABELS_I18N[locale];
 
   useEffect(() => {
+    const stored = readStoredLocale();
+    // Hydrate from localStorage once after mount (SSR always starts as zh).
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional client preference restore
+    if (stored) setLocale(stored);
+  }, []);
+
+  useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
   }, [locale]);
+
+  const setLocalePreference = useCallback((next: Locale) => {
+    setLocale(next);
+    storeLocale(next);
+  }, []);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -169,7 +155,7 @@ export function MonitorDashboard({
   const tickerItems = items.slice(0, 16);
 
   return (
-    <div className="m-shell">
+    <div className="m-shell" data-locale={locale}>
       <header className="m-top">
         <div className="m-top-inner">
           <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
@@ -290,7 +276,7 @@ export function MonitorDashboard({
         ) : refreshing && !data ? (
           <p className="m-empty">{t.scanningEllipsis}</p>
         ) : (
-          <div className="m-boards">
+          <div className="m-boards" key={locale}>
             {boards.map((board) => (
               <section key={board.key} className="m-board">
                 <div className="m-board-head">
