@@ -22,7 +22,7 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "MONITOR · 全球新闻巡检",
-  description: "每天 09:00–20:00（北京时间）每 30 分钟巡检科技、硬件、AI、金融与美股新闻。",
+  description: "每天 09:00–20:00（北京时间）巡检科技、AI、金融、健康四大板块新闻。",
   appleWebApp: {
     capable: true,
     title: "MONITOR",

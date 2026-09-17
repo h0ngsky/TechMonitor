@@ -1,4 +1,4 @@
-export type NewsCategory = "tech" | "hardware" | "ai" | "finance" | "us-markets" | "world";
+export type NewsCategory = "tech" | "ai" | "finance" | "health";
 
 export type NewsSource = {
   id: string;
@@ -9,12 +9,12 @@ export type NewsSource = {
 
 export const CATEGORY_LABELS: Record<NewsCategory, string> = {
   tech: "科技",
-  hardware: "硬件",
   ai: "AI",
   finance: "金融",
-  "us-markets": "美股",
-  world: "国际",
+  health: "健康",
 };
+
+export const BOARD_ORDER: NewsCategory[] = ["tech", "ai", "finance", "health"];
 
 export const NEWS_SOURCES: NewsSource[] = [
   {
@@ -36,29 +36,16 @@ export const NEWS_SOURCES: NewsSource[] = [
     feedUrl: "https://www.wired.com/feed/rss",
   },
   {
+    id: "engadget",
+    name: "Engadget",
+    category: "tech",
+    feedUrl: "https://www.engadget.com/rss.xml",
+  },
+  {
     id: "bbc-tech",
     name: "BBC Technology",
     category: "tech",
     feedUrl: "https://feeds.bbci.co.uk/news/technology/rss.xml",
-  },
-  {
-    id: "engadget",
-    name: "Engadget",
-    category: "hardware",
-    feedUrl: "https://www.engadget.com/rss.xml",
-  },
-  {
-    id: "ars-technica",
-    name: "Ars Technica",
-    category: "hardware",
-    feedUrl: "https://feeds.arstechnica.com/arstechnica/index",
-  },
-  {
-    id: "google-hardware",
-    name: "Google 新闻 · 芯片硬件",
-    category: "hardware",
-    feedUrl:
-      "https://news.google.com/rss/search?q=semiconductor+OR+chip+OR+GPU+OR+NVIDIA+OR+TSMC&hl=en-US&gl=US&ceid=US:en",
   },
   {
     id: "mit-tr",
@@ -81,10 +68,22 @@ export const NEWS_SOURCES: NewsSource[] = [
       "https://news.google.com/rss/search?q=%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD+OR+AI+OR+%E5%A4%A7%E6%A8%A1%E5%9E%8B&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
   },
   {
+    id: "ars-ai",
+    name: "Ars Technica",
+    category: "ai",
+    feedUrl: "https://feeds.arstechnica.com/arstechnica/index",
+  },
+  {
     id: "bbc-business",
     name: "BBC Business",
     category: "finance",
     feedUrl: "https://feeds.bbci.co.uk/news/business/rss.xml",
+  },
+  {
+    id: "cnbc-markets",
+    name: "CNBC Markets",
+    category: "finance",
+    feedUrl: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069",
   },
   {
     id: "marketwatch",
@@ -93,29 +92,36 @@ export const NEWS_SOURCES: NewsSource[] = [
     feedUrl: "https://feeds.content.dowjones.io/public/rss/mw_topstories",
   },
   {
-    id: "cnbc-markets",
-    name: "CNBC Markets",
-    category: "us-markets",
-    feedUrl: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069",
-  },
-  {
-    id: "google-us-markets",
-    name: "Google 新闻 · 美股",
-    category: "us-markets",
+    id: "google-finance",
+    name: "Google 新闻 · 金融",
+    category: "finance",
     feedUrl:
-      "https://news.google.com/rss/search?q=NASDAQ+OR+S%26P+500+OR+Dow+Jones+OR+US+stocks&hl=en-US&gl=US&ceid=US:en",
+      "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
   },
   {
-    id: "bbc-world",
-    name: "BBC World",
-    category: "world",
-    feedUrl: "https://feeds.bbci.co.uk/news/world/rss.xml",
+    id: "bbc-health",
+    name: "BBC Health",
+    category: "health",
+    feedUrl: "https://feeds.bbci.co.uk/news/health/rss.xml",
   },
   {
-    id: "google-world",
-    name: "Google 新闻 · 国际",
-    category: "world",
+    id: "google-health",
+    name: "Google 新闻 · 健康",
+    category: "health",
     feedUrl:
-      "https://news.google.com/rss/headlines/section/topic/WORLD?hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+      "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+  },
+  {
+    id: "google-health-en",
+    name: "Google News · Health",
+    category: "health",
+    feedUrl:
+      "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=en-US&gl=US&ceid=US:en",
+  },
+  {
+    id: "stat-news",
+    name: "STAT News",
+    category: "health",
+    feedUrl: "https://www.statnews.com/feed/",
   },
 ];

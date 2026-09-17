@@ -10,7 +10,11 @@ import {
   nextScanAt,
   windowCopy,
 } from "@/lib/clock";
-import { CATEGORY_LABELS, type NewsCategory } from "@/lib/sources";
+import {
+  BOARD_ORDER,
+  CATEGORY_LABELS,
+  type NewsCategory,
+} from "@/lib/sources";
 import type { NewsItem, ScanSnapshot, SourceScanResult } from "@/lib/scan";
 
 type NewsResponse = {
@@ -21,6 +25,7 @@ type NewsResponse = {
 };
 
 const ALL = "all";
+const PER_BOARD = 8;
 
 function relativeTime(iso: string | null) {
   if (!iso) return "时间未知";
@@ -31,6 +36,16 @@ function relativeTime(iso: string | null) {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours} 小时前`;
   return `${Math.round(hours / 24)} 天前`;
+}
+
+function matchesQuery(item: NewsItem, query: string) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return (
+    item.title.toLowerCase().includes(q) ||
+    item.summary.toLowerCase().includes(q) ||
+    item.sourceName.toLowerCase().includes(q)
+  );
 }
 
 export function MonitorDashboard({
@@ -101,26 +116,24 @@ export function MonitorDashboard({
   }, [load]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return items.filter((item) => {
-      if (category !== ALL && item.category !== category) return false;
-      if (!q) return true;
-      return (
-        item.title.toLowerCase().includes(q) ||
-        item.summary.toLowerCase().includes(q) ||
-        item.sourceName.toLowerCase().includes(q)
-      );
-    });
+
+  const boards = useMemo(() => {
+    const q = query.trim();
+    return BOARD_ORDER.map((key) => {
+      const boardItems = items
+        .filter((item) => item.category === key && matchesQuery(item, q))
+        .slice(0, category === ALL ? PER_BOARD : 24);
+      return {
+        key,
+        label: CATEGORY_LABELS[key],
+        items: boardItems,
+        total: items.filter((item) => item.category === key).length,
+      };
+    }).filter((board) => category === ALL || board.key === category);
   }, [items, query, category]);
 
-  const counts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const item of items) map.set(item.category, (map.get(item.category) ?? 0) + 1);
-    return map;
-  }, [items]);
-
-  const tickerItems = items.slice(0, 18);
+  const visibleCount = boards.reduce((sum, board) => sum + board.items.length, 0);
+  const tickerItems = items.slice(0, 16);
 
   return (
     <div className="relative flex w-full flex-col pb-[env(safe-area-inset-bottom)]">
@@ -138,91 +151,147 @@ export function MonitorDashboard({
 
       {tickerItems.length > 0 ? <TickerRail items={tickerItems} /> : null}
 
-      <main className="mx-auto w-full max-w-[1200px] px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-16 pt-8 sm:px-6 md:pb-20 md:pt-10 lg:px-8">
-        <div className="flex flex-col gap-10 md:gap-12 lg:flex-row lg:items-start lg:gap-12 xl:gap-14">
-          <section className="min-w-0 flex-1">
-            <div className="mb-6 flex flex-col gap-5 md:mb-8 md:gap-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
-                    Live Feed
-                  </p>
-                  <h2 className="mt-2 font-display text-3xl tracking-tight text-paper md:text-4xl">
-                    巡检结果
-                  </h2>
-                </div>
-                <label className="relative w-full md:max-w-sm">
-                  <span className="sr-only">搜索新闻</span>
-                  <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fog" />
-                  <Input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="搜索标题、摘要或来源"
-                    className="h-12 rounded-none border-0 border-b border-line bg-transparent pl-10 text-base text-paper shadow-none focus-visible:ring-0 md:h-11 md:text-sm"
-                  />
-                </label>
-              </div>
-
-              <CategoryNav
-                category={category}
-                onChange={setCategory}
-                total={items.length}
-                counts={counts}
-              />
-            </div>
-
-            {error ? (
-              <EmptyState
-                title="巡检失败"
-                detail={error}
-                action={
-                  <Button
-                    onClick={() => void load()}
-                    className="h-12 rounded-none bg-signal px-5 text-ink hover:bg-signal/90"
-                  >
-                    重试
-                  </Button>
-                }
-              />
-            ) : refreshing && !data ? (
-              <FeedSkeleton />
-            ) : filtered.length === 0 ? (
-              <EmptyState
-                title={items.length === 0 ? "还没有稿件" : "没有匹配结果"}
-                detail={
-                  items.length === 0
-                    ? "点击立即巡检，或等待下一个半点窗口。"
-                    : "换个分类，或清空搜索词。"
-                }
-              />
-            ) : (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-2">
-                {filtered.map((item, index) => (
-                  <NewsCard key={item.id} item={item} index={index} />
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <aside className="w-full shrink-0 lg:sticky lg:top-8 lg:w-72 xl:w-80">
+      <main className="mx-auto w-full max-w-[1280px] px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-20 pt-8 sm:px-6 md:pb-24 md:pt-10 lg:px-8">
+        <div className="mb-8 flex flex-col gap-5 md:mb-10 md:flex-row md:items-end md:justify-between">
+          <div>
             <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
-              Source Pulse
+              Boards
             </p>
-            <h2 className="mt-2 font-display text-2xl text-paper md:text-[1.75rem]">源站健康</h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-fog">{windowCopy()}</p>
-            <div className="mt-6 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-1">
-              {!data ? (
-                <FeedSkeleton compact />
-              ) : (
-                data.sources.map((source) => (
-                  <SourcePulse key={source.sourceId} source={source} />
-                ))
-              )}
-            </div>
-          </aside>
+            <h2 className="mt-2 font-display text-3xl tracking-tight text-paper md:text-5xl">
+              四大板块
+            </h2>
+            <p className="mt-2 text-sm text-fog md:text-base">科技 · AI · 金融 · 健康</p>
+          </div>
+          <label className="relative w-full md:max-w-sm">
+            <span className="sr-only">搜索新闻</span>
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fog" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索标题、摘要或来源"
+              className="h-12 rounded-none border-0 border-b border-line bg-transparent pl-10 text-base text-paper shadow-none focus-visible:ring-0"
+            />
+          </label>
         </div>
+
+        <CategoryNav
+          category={category}
+          onChange={setCategory}
+          total={items.length}
+          counts={Object.fromEntries(
+            BOARD_ORDER.map((key) => [
+              key,
+              items.filter((item) => item.category === key).length,
+            ]),
+          )}
+        />
+
+        {error ? (
+          <div className="mt-8">
+            <EmptyState
+              title="巡检失败"
+              detail={error}
+              action={
+                <Button
+                  onClick={() => void load()}
+                  className="h-12 rounded-none bg-signal px-5 text-ink hover:bg-signal/90"
+                >
+                  重试
+                </Button>
+              }
+            />
+          </div>
+        ) : refreshing && !data ? (
+          <div className="mt-10">
+            <FeedSkeleton />
+          </div>
+        ) : visibleCount === 0 ? (
+          <div className="mt-8">
+            <EmptyState
+              title={items.length === 0 ? "还没有稿件" : "没有匹配结果"}
+              detail={
+                items.length === 0
+                  ? "点击立即巡检，或等待下一个半点窗口。"
+                  : "换个板块，或清空搜索词。"
+              }
+            />
+          </div>
+        ) : (
+          <div className="mt-10 space-y-16 md:space-y-20">
+            {boards.map((board) => (
+              <BoardSection
+                key={board.key}
+                title={board.label}
+                count={board.total}
+                items={board.items}
+                onFocus={() => setCategory(board.key)}
+                focused={category === board.key}
+              />
+            ))}
+          </div>
+        )}
+
+        <section className="mt-16 border-t border-line pt-10 md:mt-20">
+          <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
+            Source Pulse
+          </p>
+          <h2 className="mt-2 font-display text-2xl text-paper md:text-3xl">源站健康</h2>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-fog">{windowCopy()}</p>
+          <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+            {!data ? (
+              <FeedSkeleton compact />
+            ) : (
+              data.sources.map((source) => (
+                <SourcePulse key={source.sourceId} source={source} />
+              ))
+            )}
+          </div>
+        </section>
       </main>
     </div>
+  );
+}
+
+function BoardSection({
+  title,
+  count,
+  items,
+  onFocus,
+  focused,
+}: {
+  title: string;
+  count: number;
+  items: NewsItem[];
+  onFocus: () => void;
+  focused: boolean;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section>
+      <div className="mb-6 flex items-end justify-between gap-4 border-b border-line pb-4">
+        <div>
+          <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
+            Board
+          </p>
+          <h3 className="mt-1 font-display text-4xl tracking-tight text-paper md:text-5xl">
+            {title}
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={onFocus}
+          className="font-mono text-xs tracking-[0.16em] text-fog uppercase transition-colors hover:text-signal"
+        >
+          {focused ? `${items.length} 条` : `共 ${count} 条 →`}
+        </button>
+      </div>
+      <ul className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-7">
+        {items.map((item, index) => (
+          <NewsCard key={item.id} item={item} index={index} large />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -248,10 +317,10 @@ function Hero({
   scannedAt: string;
 }) {
   return (
-    <section className="relative isolate min-h-[78vh] overflow-hidden border-b border-line pt-[env(safe-area-inset-top)] md:min-h-[72vh] lg:min-h-[88vh]">
+    <section className="relative isolate min-h-[72vh] overflow-hidden border-b border-line pt-[env(safe-area-inset-top)] md:min-h-[68vh] lg:min-h-[82vh]">
       <RadarField />
 
-      <div className="relative mx-auto flex min-h-[calc(78vh-env(safe-area-inset-top))] w-full max-w-[1200px] flex-col justify-between px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] py-7 sm:px-6 md:min-h-[72vh] md:py-9 lg:min-h-[88vh] lg:px-8 lg:py-10">
+      <div className="relative mx-auto flex min-h-[calc(72vh-env(safe-area-inset-top))] w-full max-w-[1280px] flex-col justify-between px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] py-7 sm:px-6 md:min-h-[68vh] md:py-9 lg:min-h-[82vh] lg:px-8 lg:py-10">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-fog uppercase sm:gap-3 sm:text-[11px] sm:tracking-[0.24em]">
             <span className="inline-flex size-2 shrink-0 animate-pulse-dot rounded-full bg-signal" />
@@ -262,18 +331,18 @@ function Hero({
           <p className="font-mono text-xs text-paper/80 tabular-nums md:text-sm">{nowLabel}</p>
         </div>
 
-        <div className="max-w-4xl animate-rise py-8 md:py-12 lg:py-16">
+        <div className="max-w-4xl animate-rise py-8 md:py-12 lg:py-14">
           <p className="font-display text-[clamp(3.25rem,14vw,9.5rem)] leading-[0.84] font-extrabold tracking-[-0.06em] text-paper md:text-[clamp(4.5rem,12vw,10rem)] lg:text-[clamp(5rem,11vw,11rem)]">
             MONITOR
           </p>
           <p className="mt-4 max-w-2xl text-base leading-7 text-paper/75 md:mt-5 md:text-lg md:leading-8 lg:text-xl">
-            全球新闻巡检。科技、硬件、AI、金融、美股公开源，半点自动扫一遍。
+            科技、AI、金融、健康四大板块巡检，半点自动扫一遍。
           </p>
           <div className="mt-7 flex flex-col items-start gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               onClick={onScan}
               disabled={refreshing}
-              className="h-12 min-w-[10.5rem] rounded-none bg-signal px-6 font-display text-base tracking-wide text-ink hover:bg-[#d7ff63] active:bg-[#e4ff8a] md:h-12"
+              className="h-12 min-w-[10.5rem] rounded-none bg-signal px-6 font-display text-base tracking-wide text-ink hover:bg-[#d7ff63] active:bg-[#e4ff8a]"
             >
               <RefreshCw className={refreshing ? "animate-spin" : ""} />
               {refreshing ? "扫描中" : "立即巡检"}
@@ -349,21 +418,21 @@ function CategoryNav({
   category: string;
   onChange: (value: string) => void;
   total: number;
-  counts: Map<string, number>;
+  counts: Record<string, number>;
 }) {
   const options: Array<{ value: string; label: string; count: number }> = [
     { value: ALL, label: "全部", count: total },
-    ...(Object.keys(CATEGORY_LABELS) as NewsCategory[]).map((key) => ({
+    ...BOARD_ORDER.map((key) => ({
       value: key,
       label: CATEGORY_LABELS[key],
-      count: counts.get(key) ?? 0,
+      count: counts[key] ?? 0,
     })),
   ];
 
   return (
     <div
       role="tablist"
-      aria-label="新闻分类"
+      aria-label="新闻板块"
       className="flex gap-1 overflow-x-auto overscroll-x-contain border-b border-line pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {options.map((option) => {
@@ -375,14 +444,14 @@ function CategoryNav({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(option.value)}
-            className={`relative min-h-11 shrink-0 px-3.5 py-3 font-display text-[15px] tracking-wide transition-colors md:min-h-10 md:px-3 md:text-sm ${
+            className={`relative min-h-12 shrink-0 px-4 py-3.5 font-display text-base tracking-wide transition-colors md:min-h-11 md:text-[15px] ${
               active ? "text-signal" : "text-fog active:text-paper hover:text-paper"
             }`}
           >
             {option.label}
             <span className="ml-2 font-mono text-[11px] opacity-70">{option.count}</span>
             {active ? (
-              <span className="absolute inset-x-2 -bottom-px h-0.5 bg-signal" />
+              <span className="absolute inset-x-3 -bottom-px h-0.5 bg-signal" />
             ) : null}
           </button>
         );
@@ -391,7 +460,15 @@ function CategoryNav({
   );
 }
 
-function NewsCard({ item, index }: { item: NewsItem; index: number }) {
+function NewsCard({
+  item,
+  index,
+  large = false,
+}: {
+  item: NewsItem;
+  index: number;
+  large?: boolean;
+}) {
   return (
     <li
       className="animate-rise"
@@ -401,9 +478,13 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
         href={item.link}
         target="_blank"
         rel="noreferrer"
-        className="group flex h-full flex-col overflow-hidden rounded-xl border border-line bg-[#0c1711]/80 transition-colors active:border-signal/50 active:bg-[#102016] hover:border-signal/45 hover:bg-[#102016]"
+        className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-[#0c1711]/85 transition-colors active:border-signal/50 active:bg-[#102016] hover:border-signal/45 hover:bg-[#102016]"
       >
-        <div className="relative aspect-[16/10] overflow-hidden border-b border-line/70 bg-[#0a140f]">
+        <div
+          className={`relative overflow-hidden border-b border-line/70 bg-[#0a140f] ${
+            large ? "aspect-[16/10] md:aspect-[16/9]" : "aspect-[16/10]"
+          }`}
+        >
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -420,28 +501,38 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
             />
           ) : null}
           <CoverFallback category={item.category} hidden={Boolean(item.imageUrl)} />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0c1711] to-transparent" />
-          <span className="absolute top-3 left-3 rounded-md bg-ink/75 px-2 py-1 font-mono text-[11px] tracking-[0.16em] text-signal uppercase backdrop-blur-sm">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#0c1711] to-transparent" />
+          <span className="absolute top-4 left-4 rounded-md bg-ink/75 px-2.5 py-1.5 font-mono text-[11px] tracking-[0.16em] text-signal uppercase backdrop-blur-sm">
             {CATEGORY_LABELS[item.category]}
           </span>
         </div>
 
-        <div className="flex flex-1 flex-col p-5 md:p-6">
-          <p className="font-mono text-[11px] text-fog">
+        <div className={`flex flex-1 flex-col ${large ? "p-6 md:p-7" : "p-5"}`}>
+          <p className="font-mono text-[11px] text-fog md:text-xs">
             {relativeTime(item.publishedAt)}
           </p>
-          <h3 className="mt-2 font-display text-[1.2rem] leading-snug tracking-tight text-paper transition-colors group-active:text-signal group-hover:text-signal md:text-[1.35rem]">
+          <h3
+            className={`mt-3 font-display leading-snug tracking-tight text-paper transition-colors group-active:text-signal group-hover:text-signal ${
+              large
+                ? "text-[1.45rem] md:text-[1.75rem]"
+                : "text-[1.2rem] md:text-[1.35rem]"
+            }`}
+          >
             {item.title}
           </h3>
           {item.summary ? (
-            <p className="mt-3 line-clamp-3 flex-1 text-sm leading-6 text-fog">
+            <p
+              className={`mt-3 flex-1 leading-7 text-fog ${
+                large ? "line-clamp-4 text-[15px] md:text-base" : "line-clamp-3 text-sm"
+              }`}
+            >
               {item.summary}
             </p>
           ) : (
             <div className="flex-1" />
           )}
-          <div className="mt-5 flex items-center justify-between gap-3 border-t border-line/70 pt-4">
-            <p className="truncate text-xs text-fog md:text-[13px]">{item.sourceName}</p>
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-line/70 pt-4">
+            <p className="truncate text-sm text-fog">{item.sourceName}</p>
             <span className="inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.16em] text-paper uppercase">
               Open
               <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -463,9 +554,9 @@ function CoverFallback({
   return (
     <div
       hidden={hidden}
-      className="absolute inset-0 flex items-end bg-[radial-gradient(circle_at_20%_20%,rgba(200,245,66,0.18),transparent_42%),linear-gradient(135deg,#102016,#07110c_60%)] p-5"
+      className="absolute inset-0 flex items-end bg-[radial-gradient(circle_at_20%_20%,rgba(200,245,66,0.18),transparent_42%),linear-gradient(135deg,#102016,#07110c_60%)] p-6"
     >
-      <p className="font-display text-4xl tracking-tight text-paper/25">
+      <p className="font-display text-5xl tracking-tight text-paper/25 md:text-6xl">
         {CATEGORY_LABELS[category]}
       </p>
     </div>
@@ -475,7 +566,7 @@ function CoverFallback({
 function SourcePulse({ source }: { source: SourceScanResult }) {
   const strength = Math.min(12, source.itemCount) / 12;
   return (
-    <div className="border-b border-line/70 py-3.5 md:py-3">
+    <div className="border-b border-line/70 py-3.5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm text-paper">{source.sourceName}</p>
@@ -533,15 +624,15 @@ function FeedSkeleton({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="overflow-hidden rounded-xl border border-line">
-          <div className="aspect-[16/10] bg-white/5" />
-          <div className="space-y-3 p-5">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="overflow-hidden rounded-2xl border border-line">
+          <div className="aspect-[16/9] bg-white/5" />
+          <div className="space-y-3 p-6">
             <div className="h-3 w-20 bg-white/8" />
-            <div className="h-6 w-full bg-white/8" />
-            <div className="h-6 w-4/5 bg-white/8" />
-            <div className="h-16 w-full bg-white/5" />
+            <div className="h-7 w-full bg-white/8" />
+            <div className="h-7 w-4/5 bg-white/8" />
+            <div className="h-20 w-full bg-white/5" />
           </div>
         </div>
       ))}
