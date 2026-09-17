@@ -1,18 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshCw, Search } from "lucide-react";
 import {
   formatInZone,
   isInScanWindow,
   nextScanAt,
-  windowCopy,
 } from "@/lib/clock";
-import {
-  BOARD_ORDER,
-  CATEGORY_LABELS,
-} from "@/lib/sources";
-import type { NewsItem, ScanSnapshot, SourceScanResult } from "@/lib/scan";
+import { BOARD_ORDER, CATEGORY_LABELS } from "@/lib/sources";
+import type { NewsItem, ScanSnapshot } from "@/lib/scan";
 
 type NewsResponse = {
   ok: boolean;
@@ -21,7 +17,6 @@ type NewsResponse = {
   error?: string;
 };
 
-const ALL = "all";
 const PER_BOARD = 8;
 
 function relativeTime(iso: string | null) {
@@ -61,7 +56,6 @@ export function MonitorDashboard({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string>(ALL);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -113,376 +107,140 @@ export function MonitorDashboard({
   }, [load]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
+  const q = query.trim();
 
-  const boards = useMemo(() => {
-    const q = query.trim();
-    return BOARD_ORDER.map((key) => {
-      const boardItems = items
-        .filter((item) => item.category === key && matchesQuery(item, q))
-        .slice(0, category === ALL ? PER_BOARD : 24);
-      return {
+  const boards = useMemo(
+    () =>
+      BOARD_ORDER.map((key) => ({
         key,
         label: CATEGORY_LABELS[key],
-        items: boardItems,
+        items: items
+          .filter((item) => item.category === key && matchesQuery(item, q))
+          .slice(0, PER_BOARD),
         total: items.filter((item) => item.category === key).length,
-      };
-    }).filter((board) => category === ALL || board.key === category);
-  }, [items, query, category]);
-
-  const visibleCount = boards.reduce((sum, board) => sum + board.items.length, 0);
-  const tickerItems = items.slice(0, 16);
-  const counts = Object.fromEntries(
-    BOARD_ORDER.map((key) => [key, items.filter((item) => item.category === key).length]),
+      })),
+    [items, q],
   );
+
+  const tickerItems = items.slice(0, 16);
 
   return (
     <div className="m-shell">
-      <Hero
-        inWindow={inWindow}
-        nowLabel={nowLabel}
-        nextLabel={nextLabel}
-        refreshing={refreshing}
-        onScan={() => void load()}
-        itemCount={data?.itemCount ?? 0}
-        okSources={data?.okSourceCount ?? 0}
-        sourceCount={data?.sourceCount ?? 0}
-        scannedAt={data ? formatInZone(new Date(data.scannedAt)) : "—"}
-      />
+      <header className="m-top">
+        <div className="m-top-inner">
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
+            <h1 className="m-brand">MONITOR</h1>
+            <span style={{ color: "var(--m-fog)", fontSize: "0.85rem" }}>
+              科技 / AI / 金融 / 健康
+            </span>
+          </div>
+          <div className="m-top-meta">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span className="m-dot" />
+              {inWindow ? "巡检中" : "待命"}
+            </span>
+            <span>{nowLabel}</span>
+            <span>下次 {nextLabel}</span>
+            <button type="button" className="m-btn" onClick={() => void load()} disabled={refreshing}>
+              <RefreshCw size={14} />
+              {refreshing ? "扫描中" : "立即巡检"}
+            </button>
+          </div>
+        </div>
+      </header>
 
-      {tickerItems.length > 0 ? <TickerRail items={tickerItems} /> : null}
+      {tickerItems.length > 0 ? (
+        <div className="m-ticker">
+          <div className="m-ticker-track">
+            {[...tickerItems, ...tickerItems].map((item, index) => (
+              <span key={`${item.id}-${index}`} className="m-ticker-item">
+                <span className="m-ticker-cat">{CATEGORY_LABELS[item.category]}</span>
+                <span className="m-ticker-title">{item.title}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <main className="m-main">
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "1rem",
-              justifyContent: "space-between",
-              alignItems: "flex-end",
-            }}
-          >
-            <div>
-              <p className="m-kicker" style={{ color: "var(--m-signal)" }}>
-                Boards
-              </p>
-              <h2 className="m-section-title">四大板块</h2>
-              <p style={{ margin: "0.5rem 0 0", color: "var(--m-fog)", fontSize: "0.95rem" }}>
-                科技 · AI · 金融 · 健康
-              </p>
-            </div>
-            <label style={{ position: "relative", width: "100%", maxWidth: "24rem" }}>
-              <span className="sr-only">搜索新闻</span>
-              <Search
-                style={{
-                  position: "absolute",
-                  left: "0.75rem",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: 16,
-                  height: 16,
-                  color: "var(--m-fog)",
-                  pointerEvents: "none",
-                }}
-              />
-              <input
-                className="m-search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="搜索标题、摘要或来源"
-                aria-label="搜索新闻"
-              />
-            </label>
+        <div className="m-toolbar">
+          <div className="m-stats">
+            <span>
+              最近 <strong>{data ? formatInZone(new Date(data.scannedAt)) : "—"}</strong>
+            </span>
+            <span>
+              稿件 <strong>{data?.itemCount ?? 0}</strong>
+            </span>
+            <span>
+              源站{" "}
+              <strong>
+                {data?.okSourceCount ?? 0}/{data?.sourceCount ?? "—"}
+              </strong>
+            </span>
           </div>
-
-          <CategoryNav
-            category={category}
-            onChange={setCategory}
-            total={items.length}
-            counts={counts}
-          />
+          <label className="m-search-wrap">
+            <span className="sr-only">搜索新闻</span>
+            <Search
+              size={14}
+              style={{
+                position: "absolute",
+                left: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--m-fog)",
+                pointerEvents: "none",
+              }}
+            />
+            <input
+              className="m-search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索…"
+              aria-label="搜索新闻"
+            />
+          </label>
         </div>
 
         {error ? (
-          <div style={{ marginTop: "2rem" }}>
-            <EmptyState
-              title="巡检失败"
-              detail={error}
-              action={
-                <button type="button" className="m-btn" onClick={() => void load()}>
-                  重试
-                </button>
-              }
-            />
-          </div>
+          <p className="m-empty">
+            巡检失败：{error}{" "}
+            <button type="button" className="m-btn" onClick={() => void load()}>
+              重试
+            </button>
+          </p>
         ) : refreshing && !data ? (
-          <p style={{ marginTop: "2.5rem", color: "var(--m-fog)" }}>正在巡检…</p>
-        ) : visibleCount === 0 ? (
-          <div style={{ marginTop: "2rem" }}>
-            <EmptyState
-              title={items.length === 0 ? "还没有稿件" : "没有匹配结果"}
-              detail={
-                items.length === 0
-                  ? "点击立即巡检，或等待下一个半点窗口。"
-                  : "换个板块，或清空搜索词。"
-              }
-            />
-          </div>
+          <p className="m-empty">正在巡检…</p>
         ) : (
-          <div>
+          <div className="m-boards">
             {boards.map((board) => (
-              <BoardSection
-                key={board.key}
-                title={board.label}
-                count={board.total}
-                items={board.items}
-                onFocus={() => setCategory(board.key)}
-                focused={category === board.key}
-              />
+              <section key={board.key} className="m-board">
+                <div className="m-board-head">
+                  <h2 className="m-board-name">{board.label}</h2>
+                  <span className="m-board-count">{board.total}</span>
+                </div>
+                {board.items.length === 0 ? (
+                  <p className="m-empty">暂无稿件</p>
+                ) : (
+                  <ul className="m-list">
+                    {board.items.map((item) => (
+                      <NewsRow key={item.id} item={item} />
+                    ))}
+                  </ul>
+                )}
+              </section>
             ))}
           </div>
         )}
-
-        <section className="m-sources">
-          <p className="m-kicker" style={{ color: "var(--m-signal)" }}>
-            Source Pulse
-          </p>
-          <h2 className="m-section-title" style={{ fontSize: "1.75rem" }}>
-            源站健康
-          </h2>
-          <p style={{ margin: "0.5rem 0 0", color: "var(--m-fog)", fontSize: "0.9rem" }}>
-            {windowCopy()}
-          </p>
-          <div className="m-source-grid">
-            {!data
-              ? null
-              : data.sources.map((source) => (
-                  <SourcePulse key={source.sourceId} source={source} />
-                ))}
-          </div>
-        </section>
       </main>
     </div>
   );
 }
 
-function BoardSection({
-  title,
-  count,
-  items,
-  onFocus,
-  focused,
-}: {
-  title: string;
-  count: number;
-  items: NewsItem[];
-  onFocus: () => void;
-  focused: boolean;
-}) {
-  if (items.length === 0) return null;
-
-  return (
-    <section className="m-board">
-      <div className="m-board-head">
-        <div>
-          <p className="m-kicker" style={{ color: "var(--m-signal)" }}>
-            Board
-          </p>
-          <h3 className="m-board-name">{title}</h3>
-        </div>
-        <button
-          type="button"
-          onClick={onFocus}
-          style={{
-            border: 0,
-            background: "transparent",
-            color: "var(--m-fog)",
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-            fontSize: 12,
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-            cursor: "pointer",
-          }}
-        >
-          {focused ? `${items.length} 条` : `共 ${count} 条 →`}
-        </button>
-      </div>
-      <ul className="m-grid">
-        {items.map((item) => (
-          <NewsCard key={item.id} item={item} />
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function Hero({
-  inWindow,
-  nowLabel,
-  nextLabel,
-  refreshing,
-  onScan,
-  itemCount,
-  okSources,
-  sourceCount,
-  scannedAt,
-}: {
-  inWindow: boolean;
-  nowLabel: string;
-  nextLabel: string;
-  refreshing: boolean;
-  onScan: () => void;
-  itemCount: number;
-  okSources: number;
-  sourceCount: number;
-  scannedAt: string;
-}) {
-  return (
-    <section className="m-hero">
-      <div className="m-hero-inner">
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-            alignItems: "center",
-          }}
-        >
-          <div className="m-kicker">
-            <span className="m-dot" />
-            <span>{inWindow ? "Window Open" : "Standby"}</span>
-            <span>/</span>
-            <span>Asia/Shanghai</span>
-          </div>
-          <p
-            style={{
-              margin: 0,
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              fontSize: 13,
-              color: "rgba(237,245,232,0.8)",
-            }}
-          >
-            {nowLabel}
-          </p>
-        </div>
-
-        <div style={{ padding: "2rem 0" }}>
-          <p className="m-brand">MONITOR</p>
-          <p className="m-lead">科技、AI、金融、健康四大板块巡检，半点自动扫一遍。</p>
-          <div
-            style={{
-              marginTop: "1.75rem",
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "0.75rem",
-              alignItems: "center",
-            }}
-          >
-            <button type="button" className="m-btn" onClick={onScan} disabled={refreshing}>
-              <RefreshCw size={16} className={refreshing ? "animate-spin" : undefined} />
-              {refreshing ? "扫描中" : "立即巡检"}
-            </button>
-            <p
-              style={{
-                margin: 0,
-                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                fontSize: 12,
-                color: "var(--m-fog)",
-              }}
-            >
-              下次计划 {nextLabel}
-            </p>
-          </div>
-        </div>
-
-        <dl className="m-metrics">
-          <div>
-            <dt>最近巡检</dt>
-            <dd>{scannedAt}</dd>
-          </div>
-          <div>
-            <dt>稿件</dt>
-            <dd>{itemCount}</dd>
-          </div>
-          <div>
-            <dt>源站</dt>
-            <dd>
-              {okSources}/{sourceCount || "—"}
-            </dd>
-          </div>
-          <div>
-            <dt>节奏</dt>
-            <dd>30 MIN</dd>
-          </div>
-        </dl>
-      </div>
-    </section>
-  );
-}
-
-function TickerRail({ items }: { items: NewsItem[] }) {
-  const loop = [...items, ...items];
-  return (
-    <div className="m-ticker">
-      <div className="m-ticker-track">
-        {loop.map((item, index) => (
-          <span key={`${item.id}-${index}`} className="m-ticker-item">
-            <span className="m-ticker-cat">{CATEGORY_LABELS[item.category]}</span>
-            <span className="m-ticker-title">{item.title}</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CategoryNav({
-  category,
-  onChange,
-  total,
-  counts,
-}: {
-  category: string;
-  onChange: (value: string) => void;
-  total: number;
-  counts: Record<string, number>;
-}) {
-  const options: Array<{ value: string; label: string; count: number }> = [
-    { value: ALL, label: "全部", count: total },
-    ...BOARD_ORDER.map((key) => ({
-      value: key,
-      label: CATEGORY_LABELS[key],
-      count: counts[key] ?? 0,
-    })),
-  ];
-
-  return (
-    <div className="m-tabs" role="tablist" aria-label="新闻板块">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={category === option.value}
-          className="m-tab"
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-          <span style={{ marginLeft: "0.5rem", opacity: 0.7, fontFamily: "ui-monospace, monospace", fontSize: 11 }}>
-            {option.count}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function NewsCard({ item }: { item: NewsItem }) {
+function NewsRow({ item }: { item: NewsItem }) {
   return (
     <li>
-      <a className="m-card" href={item.link} target="_blank" rel="noreferrer">
-        <div className="m-card-media">
+      <a className="m-item" href={item.link} target="_blank" rel="noreferrer">
+        <div className="m-thumb">
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -497,82 +255,17 @@ function NewsCard({ item }: { item: NewsItem }) {
               }}
             />
           ) : null}
-          <div className="m-card-fallback" hidden={Boolean(item.imageUrl)}>
-            <span>{CATEGORY_LABELS[item.category]}</span>
+          <div className="m-thumb-fallback" hidden={Boolean(item.imageUrl)}>
+            {CATEGORY_LABELS[item.category]}
           </div>
-          <span className="m-badge">{CATEGORY_LABELS[item.category]}</span>
         </div>
-        <div className="m-card-body">
-          <p className="m-card-time">{relativeTime(item.publishedAt)}</p>
-          <h3 className="m-card-title">{item.title}</h3>
-          {item.summary ? <p className="m-card-summary">{item.summary}</p> : null}
-          <div className="m-card-foot">
-            <p style={{ margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {item.sourceName}
-            </p>
-            <span className="m-open">
-              Open <ArrowUpRight size={14} style={{ display: "inline", verticalAlign: "middle" }} />
-            </span>
-          </div>
+        <div className="m-item-body">
+          <h3 className="m-item-title">{item.title}</h3>
+          <p className="m-item-meta">
+            {relativeTime(item.publishedAt)} · {item.sourceName}
+          </p>
         </div>
       </a>
     </li>
-  );
-}
-
-function SourcePulse({ source }: { source: SourceScanResult }) {
-  const strength = Math.min(12, source.itemCount) / 12;
-  return (
-    <div className="m-source">
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
-        <div style={{ minWidth: 0 }}>
-          <p className="m-source-name">{source.sourceName}</p>
-          <p className="m-source-meta">{CATEGORY_LABELS[source.category]}</p>
-        </div>
-        <p
-          style={{
-            margin: 0,
-            fontFamily: "ui-monospace, monospace",
-            fontSize: 12,
-            color: source.ok ? "var(--m-signal)" : "#ff6b4a",
-          }}
-          title={source.error}
-        >
-          {source.ok ? `${source.itemCount}` : "FAIL"}
-        </p>
-      </div>
-      <div className="m-bar">
-        <span style={{ width: source.ok ? `${Math.max(8, strength * 100)}%` : "100%", background: source.ok ? undefined : "#ff6b4a" }} />
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({
-  title,
-  detail,
-  action,
-}: {
-  title: string;
-  detail: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: "0.75rem",
-        border: "1px dashed var(--m-line)",
-        padding: "3rem 1.5rem",
-      }}
-    >
-      <p style={{ margin: 0, fontSize: "1.5rem", color: "var(--m-paper)" }}>{title}</p>
-      <p style={{ margin: 0, maxWidth: "28rem", color: "var(--m-fog)", fontSize: "0.9rem", lineHeight: 1.6 }}>
-        {detail}
-      </p>
-      {action}
-    </div>
   );
 }
