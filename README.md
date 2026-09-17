@@ -11,6 +11,8 @@ npm run dev
 
 打开 [http://localhost:43123](http://localhost:43123)（或终端里提示的端口）。
 
+页眉有 **中文 / EN** 开关，界面文案会切换，选择会保存在本地；新闻标题仍按源站原文显示。
+
 ## 部署到 Vercel
 
 项目已按 Next.js 配置。Hobby 套餐的 Vercel Cron 每天只能跑一次，因此 `vercel.json` 里是北京时间 **09:00**（UTC `0 1 * * *`）的一次巡检。
