@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Noto_Sans_SC, Syne } from "next/font/google";
 import "./globals.css";
 
@@ -23,6 +23,21 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "MONITOR · 全球新闻巡检",
   description: "每天 09:00–20:00（北京时间）每 30 分钟巡检科技、硬件、AI、金融与美股新闻。",
+  appleWebApp: {
+    capable: true,
+    title: "MONITOR",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#07110c",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

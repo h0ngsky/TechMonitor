@@ -123,7 +123,7 @@ export function MonitorDashboard({
   const tickerItems = items.slice(0, 18);
 
   return (
-    <div className="relative flex w-full flex-col">
+    <div className="relative flex w-full flex-col pb-[env(safe-area-inset-bottom)]">
       <Hero
         inWindow={inWindow}
         nowLabel={nowLabel}
@@ -138,27 +138,27 @@ export function MonitorDashboard({
 
       {tickerItems.length > 0 ? <TickerRail items={tickerItems} /> : null}
 
-      <main className="mx-auto w-full max-w-[1180px] px-4 pb-20 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-10 pt-10 lg:flex-row lg:gap-14">
+      <main className="mx-auto w-full max-w-[1200px] px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-16 pt-8 sm:px-6 md:pb-20 md:pt-10 lg:px-8">
+        <div className="flex flex-col gap-10 md:gap-12 lg:flex-row lg:items-start lg:gap-12 xl:gap-14">
           <section className="min-w-0 flex-1">
-            <div className="mb-8 flex flex-col gap-5">
-              <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="mb-6 flex flex-col gap-5 md:mb-8 md:gap-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
                     Live Feed
                   </p>
-                  <h2 className="mt-2 font-display text-3xl tracking-tight text-paper sm:text-4xl">
+                  <h2 className="mt-2 font-display text-3xl tracking-tight text-paper md:text-4xl">
                     巡检结果
                   </h2>
                 </div>
-                <label className="relative w-full max-w-sm">
+                <label className="relative w-full md:max-w-sm">
                   <span className="sr-only">搜索新闻</span>
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fog" />
                   <Input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="搜索标题、摘要或来源"
-                    className="h-11 rounded-none border-0 border-b border-line bg-transparent pl-10 text-paper shadow-none focus-visible:ring-0"
+                    className="h-12 rounded-none border-0 border-b border-line bg-transparent pl-10 text-base text-paper shadow-none focus-visible:ring-0 md:h-11 md:text-sm"
                   />
                 </label>
               </div>
@@ -178,7 +178,7 @@ export function MonitorDashboard({
                 action={
                   <Button
                     onClick={() => void load()}
-                    className="rounded-none bg-signal text-ink hover:bg-signal/90"
+                    className="h-12 rounded-none bg-signal px-5 text-ink hover:bg-signal/90"
                   >
                     重试
                   </Button>
@@ -196,7 +196,7 @@ export function MonitorDashboard({
                 }
               />
             ) : (
-              <ul className="grid gap-4 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-2">
                 {filtered.map((item, index) => (
                   <NewsCard key={item.id} item={item} index={index} />
                 ))}
@@ -204,24 +204,20 @@ export function MonitorDashboard({
             )}
           </section>
 
-          <aside className="w-full shrink-0 lg:w-72">
-            <div className="lg:sticky lg:top-8">
-              <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
-                Source Pulse
-              </p>
-              <h2 className="mt-2 font-display text-2xl text-paper">源站健康</h2>
-              <p className="mt-2 text-sm leading-6 text-fog">
-                {windowCopy()}
-              </p>
-              <div className="mt-6 space-y-3">
-                {!data ? (
-                  <FeedSkeleton compact />
-                ) : (
-                  data.sources.map((source) => (
-                    <SourcePulse key={source.sourceId} source={source} />
-                  ))
-                )}
-              </div>
+          <aside className="w-full shrink-0 lg:sticky lg:top-8 lg:w-72 xl:w-80">
+            <p className="font-mono text-[11px] tracking-[0.28em] text-signal uppercase">
+              Source Pulse
+            </p>
+            <h2 className="mt-2 font-display text-2xl text-paper md:text-[1.75rem]">源站健康</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-fog">{windowCopy()}</p>
+            <div className="mt-6 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-1">
+              {!data ? (
+                <FeedSkeleton compact />
+              ) : (
+                data.sources.map((source) => (
+                  <SourcePulse key={source.sourceId} source={source} />
+                ))
+              )}
             </div>
           </aside>
         </div>
@@ -252,43 +248,43 @@ function Hero({
   scannedAt: string;
 }) {
   return (
-    <section className="relative isolate min-h-[88vh] overflow-hidden border-b border-line">
+    <section className="relative isolate min-h-[78vh] overflow-hidden border-b border-line pt-[env(safe-area-inset-top)] md:min-h-[72vh] lg:min-h-[88vh]">
       <RadarField />
 
-      <div className="relative mx-auto flex min-h-[88vh] w-full max-w-[1180px] flex-col justify-between px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 font-mono text-[11px] tracking-[0.24em] text-fog uppercase">
-            <span className="inline-flex size-2 animate-pulse-dot rounded-full bg-signal" />
-            {inWindow ? "Window Open" : "Standby"}
-            <span className="text-line">/</span>
-            Asia/Shanghai
+      <div className="relative mx-auto flex min-h-[calc(78vh-env(safe-area-inset-top))] w-full max-w-[1200px] flex-col justify-between px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] py-7 sm:px-6 md:min-h-[72vh] md:py-9 lg:min-h-[88vh] lg:px-8 lg:py-10">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-fog uppercase sm:gap-3 sm:text-[11px] sm:tracking-[0.24em]">
+            <span className="inline-flex size-2 shrink-0 animate-pulse-dot rounded-full bg-signal" />
+            <span className="truncate">{inWindow ? "Window Open" : "Standby"}</span>
+            <span className="hidden text-line sm:inline">/</span>
+            <span className="hidden sm:inline">Asia/Shanghai</span>
           </div>
-          <p className="font-mono text-xs text-paper/80 tabular-nums sm:text-sm">{nowLabel}</p>
+          <p className="font-mono text-xs text-paper/80 tabular-nums md:text-sm">{nowLabel}</p>
         </div>
 
-        <div className="max-w-4xl animate-rise py-10 sm:py-16">
-          <p className="font-display text-[clamp(4.5rem,18vw,11rem)] leading-[0.82] font-extrabold tracking-[-0.06em] text-paper">
+        <div className="max-w-4xl animate-rise py-8 md:py-12 lg:py-16">
+          <p className="font-display text-[clamp(3.25rem,14vw,9.5rem)] leading-[0.84] font-extrabold tracking-[-0.06em] text-paper md:text-[clamp(4.5rem,12vw,10rem)] lg:text-[clamp(5rem,11vw,11rem)]">
             MONITOR
           </p>
-          <p className="mt-5 max-w-xl text-lg leading-8 text-paper/75 sm:text-xl">
+          <p className="mt-4 max-w-2xl text-base leading-7 text-paper/75 md:mt-5 md:text-lg md:leading-8 lg:text-xl">
             全球新闻巡检。科技、硬件、AI、金融、美股公开源，半点自动扫一遍。
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="mt-7 flex flex-col items-start gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               onClick={onScan}
               disabled={refreshing}
-              className="h-12 rounded-none bg-signal px-6 font-display text-base tracking-wide text-ink hover:bg-[#d7ff63]"
+              className="h-12 min-w-[10.5rem] rounded-none bg-signal px-6 font-display text-base tracking-wide text-ink hover:bg-[#d7ff63] active:bg-[#e4ff8a] md:h-12"
             >
               <RefreshCw className={refreshing ? "animate-spin" : ""} />
               {refreshing ? "扫描中" : "立即巡检"}
             </Button>
-            <p className="font-mono text-xs text-fog">
+            <p className="font-mono text-xs text-fog md:text-[13px]">
               下次计划 {nextLabel}
             </p>
           </div>
         </div>
 
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-t border-line pt-6 sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-5 border-t border-line pt-5 md:grid-cols-4 md:gap-x-6 md:pt-6">
           <Metric label="最近巡检" value={scannedAt} />
           <Metric label="稿件" value={String(itemCount)} />
           <Metric label="源站" value={`${okSources}/${sourceCount || "—"}`} />
@@ -303,7 +299,7 @@ function RadarField() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute top-[-10%] right-[-18%] h-[70vh] w-[70vh] sm:top-[-5%] sm:right-[-8%] sm:h-[78vh] sm:w-[78vh]"
+      className="pointer-events-none absolute top-[-8%] right-[-28%] h-[58vh] w-[58vh] opacity-70 sm:top-[-5%] sm:right-[-14%] sm:h-[70vh] sm:w-[70vh] sm:opacity-90 md:right-[-10%] md:h-[74vh] md:w-[74vh] lg:right-[-8%] lg:h-[78vh] lg:w-[78vh] lg:opacity-100"
     >
       <div className="absolute inset-[8%] rounded-full border border-signal/10" />
       <div className="absolute inset-[22%] rounded-full border border-signal/15" />
@@ -319,7 +315,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="font-mono text-[10px] tracking-[0.22em] text-fog uppercase">{label}</dt>
-      <dd className="mt-2 font-mono text-lg text-paper tabular-nums sm:text-xl">{value}</dd>
+      <dd className="mt-2 font-mono text-base text-paper tabular-nums md:text-lg lg:text-xl">{value}</dd>
     </div>
   );
 }
@@ -328,13 +324,13 @@ function TickerRail({ items }: { items: NewsItem[] }) {
   const loop = [...items, ...items];
   return (
     <div className="overflow-hidden border-b border-line bg-signal text-ink">
-      <div className="animate-ticker flex w-max gap-10 py-3 whitespace-nowrap">
+      <div className="animate-ticker flex w-max gap-8 py-3 whitespace-nowrap md:gap-10 md:py-3.5">
         {loop.map((item, index) => (
           <span key={`${item.id}-${index}`} className="inline-flex items-center gap-3 px-2">
             <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase">
               {CATEGORY_LABELS[item.category]}
             </span>
-            <span className="font-display text-sm font-semibold tracking-tight">
+            <span className="font-display text-sm font-semibold tracking-tight md:text-[15px]">
               {item.title}
             </span>
           </span>
@@ -368,7 +364,7 @@ function CategoryNav({
     <div
       role="tablist"
       aria-label="新闻分类"
-      className="flex gap-1 overflow-x-auto border-b border-line pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex gap-1 overflow-x-auto overscroll-x-contain border-b border-line pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {options.map((option) => {
         const active = category === option.value;
@@ -379,8 +375,8 @@ function CategoryNav({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(option.value)}
-            className={`relative shrink-0 px-3 py-3 font-display text-sm tracking-wide transition-colors ${
-              active ? "text-signal" : "text-fog hover:text-paper"
+            className={`relative min-h-11 shrink-0 px-3.5 py-3 font-display text-[15px] tracking-wide transition-colors md:min-h-10 md:px-3 md:text-sm ${
+              active ? "text-signal" : "text-fog active:text-paper hover:text-paper"
             }`}
           >
             {option.label}
@@ -405,7 +401,7 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
         href={item.link}
         target="_blank"
         rel="noreferrer"
-        className="group flex h-full flex-col rounded-xl border border-line bg-[#0c1711]/80 p-5 transition-colors hover:border-signal/45 hover:bg-[#102016]"
+        className="group flex h-full min-h-[11.5rem] flex-col rounded-xl border border-line bg-[#0c1711]/80 p-5 transition-colors active:border-signal/50 active:bg-[#102016] hover:border-signal/45 hover:bg-[#102016] md:min-h-[13rem] md:p-6"
       >
         <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] tracking-[0.16em] text-signal uppercase">
           <span className="rounded-md bg-signal/12 px-2 py-1 text-signal">
@@ -415,18 +411,18 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
             {relativeTime(item.publishedAt)}
           </span>
         </div>
-        <h3 className="mt-4 font-display text-xl leading-snug tracking-tight text-paper transition-colors group-hover:text-signal sm:text-[1.35rem]">
+        <h3 className="mt-4 font-display text-[1.2rem] leading-snug tracking-tight text-paper transition-colors group-active:text-signal group-hover:text-signal md:text-[1.35rem]">
           {item.title}
         </h3>
         {item.summary ? (
-          <p className="mt-3 line-clamp-3 flex-1 text-sm leading-6 text-fog">
+          <p className="mt-3 line-clamp-3 flex-1 text-sm leading-6 text-fog md:line-clamp-4">
             {item.summary}
           </p>
         ) : (
           <div className="flex-1" />
         )}
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-line/70 pt-4">
-          <p className="truncate text-xs text-fog">{item.sourceName}</p>
+          <p className="truncate text-xs text-fog md:text-[13px]">{item.sourceName}</p>
           <span className="inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.16em] text-paper uppercase">
             Open
             <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -440,7 +436,7 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
 function SourcePulse({ source }: { source: SourceScanResult }) {
   const strength = Math.min(12, source.itemCount) / 12;
   return (
-    <div className="border-b border-line/70 py-3">
+    <div className="border-b border-line/70 py-3.5 md:py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm text-paper">{source.sourceName}</p>

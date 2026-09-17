@@ -20,6 +20,8 @@ function decodeXml(value: string) {
 
 function stripHtml(value: string) {
   return decodeXml(value)
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\u00a0/g, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
