@@ -13,11 +13,11 @@ npm run dev
 
 ## 部署到 Vercel
 
-1. 把仓库接到 Vercel 项目并部署。
-2. Cron 已写在 `vercel.json`：`0,30 1-12 * * *`（UTC），对应北京时间 09:00–20:30 的每个半点。真正落库扫描发生在 09:00–20:00 窗口内。
-3. 建议在 Vercel 环境变量里设置 `CRON_SECRET`。设置后，Vercel 会自动带上 `Authorization: Bearer <secret>` 调用 `/api/cron/scan`。
+项目已按 Next.js 配置。Hobby 套餐的 Vercel Cron 每天只能跑一次，因此 `vercel.json` 里是北京时间 **09:00**（UTC `0 1 * * *`）的一次巡检。
 
-Hobby 套餐对 Cron 频率有限制；若半点任务未能触发，打开网页或点「立即巡检」仍会拉最新稿件。Pro 套餐可按配置每 30 分钟跑一次。
+半点巡检由 GitHub Actions 调用 `/api/cron/scan` 完成（09:00–20:00 北京时间）。打开网页或点「立即巡检」也会立刻拉取。升级 Vercel Pro 后，可以把 Cron 改回 `0,30 1-12 * * *`。
+
+建议设置环境变量 `CRON_SECRET`；GitHub Actions 里同步配置同名 secret，请求会带 `Authorization: Bearer`。
 
 ## 数据从哪来
 

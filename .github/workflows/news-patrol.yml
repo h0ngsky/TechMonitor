@@ -1,0 +1,24 @@
+name: news-patrol
+
+on:
+  schedule:
+    - cron: "0,30 1-12 * * *"
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger news scan
+        env:
+          MONITOR_URL: ${{ vars.MONITOR_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          url="${MONITOR_URL:?Set repository variable MONITOR_URL to the Vercel production URL}"
+          auth_args=()
+          if [ -n "${CRON_SECRET:-}" ]; then
+            auth_args=(-H "Authorization: Bearer ${CRON_SECRET}")
+          fi
+          curl -fsS --max-time 90 "${auth_args[@]}" "${url}/api/cron/scan"
+          echo
