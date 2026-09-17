@@ -239,28 +239,28 @@ export function MonitorDashboard({
 
 function NewsRow({ item }: { item: NewsItem }) {
   const imageSrc = proxiedImageUrl(item.imageUrl);
+  const [showThumb, setShowThumb] = useState(Boolean(imageSrc));
+
   return (
     <li>
-      <a className="m-item" href={item.link} target="_blank" rel="noreferrer">
-        <div className="m-thumb">
-          {imageSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
+      <a
+        className={`m-item${showThumb ? "" : " m-item--text"}`}
+        href={item.link}
+        target="_blank"
+        rel="noreferrer"
+      >
+        {showThumb ? (
+          <div className="m-thumb">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={imageSrc}
+              src={imageSrc!}
               alt=""
               loading="lazy"
               decoding="async"
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
-                const fallback = event.currentTarget.nextElementSibling;
-                if (fallback instanceof HTMLElement) fallback.hidden = false;
-              }}
+              onError={() => setShowThumb(false)}
             />
-          ) : null}
-          <div className="m-thumb-fallback" hidden={Boolean(imageSrc)}>
-            {CATEGORY_LABELS[item.category]}
           </div>
-        </div>
+        ) : null}
         <div className="m-item-body">
           <h3 className="m-item-title">{item.title}</h3>
           <p className="m-item-meta">
