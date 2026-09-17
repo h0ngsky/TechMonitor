@@ -44,18 +44,8 @@ export function MonitorDashboard({
 }) {
   const [data, setData] = useState<ScanSnapshot | null>(initialSnapshot);
   const [inWindow, setInWindow] = useState(initialInWindow);
-  const [nextLabel, setNextLabel] = useState(nextScanAt());
-  const [nowLabel, setNowLabel] = useState(
-    formatInZone(new Date(), {
-      month: "2-digit",
-      day: "2-digit",
-      weekday: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hourCycle: "h23",
-    }),
-  );
+  const [nextLabel, setNextLabel] = useState("—");
+  const [nowLabel, setNowLabel] = useState("—");
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [query, setQuery] = useState("");
@@ -83,7 +73,7 @@ export function MonitorDashboard({
   }, []);
 
   useEffect(() => {
-    const clock = window.setInterval(() => {
+    const tick = () => {
       const now = new Date();
       setNowLabel(
         formatInZone(now, {
@@ -98,7 +88,9 @@ export function MonitorDashboard({
       );
       setInWindow(isInScanWindow(now));
       setNextLabel(nextScanAt(now));
-    }, 1000);
+    };
+    tick();
+    const clock = window.setInterval(tick, 1000);
     const patrol = window.setInterval(() => {
       if (isInScanWindow()) void load();
     }, 30 * 60 * 1000);
