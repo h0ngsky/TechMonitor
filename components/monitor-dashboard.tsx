@@ -401,35 +401,74 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
         href={item.link}
         target="_blank"
         rel="noreferrer"
-        className="group flex h-full min-h-[11.5rem] flex-col rounded-xl border border-line bg-[#0c1711]/80 p-5 transition-colors active:border-signal/50 active:bg-[#102016] hover:border-signal/45 hover:bg-[#102016] md:min-h-[13rem] md:p-6"
+        className="group flex h-full flex-col overflow-hidden rounded-xl border border-line bg-[#0c1711]/80 transition-colors active:border-signal/50 active:bg-[#102016] hover:border-signal/45 hover:bg-[#102016]"
       >
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] tracking-[0.16em] text-signal uppercase">
-          <span className="rounded-md bg-signal/12 px-2 py-1 text-signal">
+        <div className="relative aspect-[16/10] overflow-hidden border-b border-line/70 bg-[#0a140f]">
+          {item.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.imageUrl}
+              alt=""
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+                const fallback = event.currentTarget.nextElementSibling;
+                if (fallback instanceof HTMLElement) fallback.hidden = false;
+              }}
+            />
+          ) : null}
+          <CoverFallback category={item.category} hidden={Boolean(item.imageUrl)} />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0c1711] to-transparent" />
+          <span className="absolute top-3 left-3 rounded-md bg-ink/75 px-2 py-1 font-mono text-[11px] tracking-[0.16em] text-signal uppercase backdrop-blur-sm">
             {CATEGORY_LABELS[item.category]}
           </span>
-          <span className="text-fog normal-case tracking-normal">
-            {relativeTime(item.publishedAt)}
-          </span>
         </div>
-        <h3 className="mt-4 font-display text-[1.2rem] leading-snug tracking-tight text-paper transition-colors group-active:text-signal group-hover:text-signal md:text-[1.35rem]">
-          {item.title}
-        </h3>
-        {item.summary ? (
-          <p className="mt-3 line-clamp-3 flex-1 text-sm leading-6 text-fog md:line-clamp-4">
-            {item.summary}
+
+        <div className="flex flex-1 flex-col p-5 md:p-6">
+          <p className="font-mono text-[11px] text-fog">
+            {relativeTime(item.publishedAt)}
           </p>
-        ) : (
-          <div className="flex-1" />
-        )}
-        <div className="mt-5 flex items-center justify-between gap-3 border-t border-line/70 pt-4">
-          <p className="truncate text-xs text-fog md:text-[13px]">{item.sourceName}</p>
-          <span className="inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.16em] text-paper uppercase">
-            Open
-            <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </span>
+          <h3 className="mt-2 font-display text-[1.2rem] leading-snug tracking-tight text-paper transition-colors group-active:text-signal group-hover:text-signal md:text-[1.35rem]">
+            {item.title}
+          </h3>
+          {item.summary ? (
+            <p className="mt-3 line-clamp-3 flex-1 text-sm leading-6 text-fog">
+              {item.summary}
+            </p>
+          ) : (
+            <div className="flex-1" />
+          )}
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-line/70 pt-4">
+            <p className="truncate text-xs text-fog md:text-[13px]">{item.sourceName}</p>
+            <span className="inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.16em] text-paper uppercase">
+              Open
+              <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </span>
+          </div>
         </div>
       </a>
     </li>
+  );
+}
+
+function CoverFallback({
+  category,
+  hidden,
+}: {
+  category: NewsCategory;
+  hidden?: boolean;
+}) {
+  return (
+    <div
+      hidden={hidden}
+      className="absolute inset-0 flex items-end bg-[radial-gradient(circle_at_20%_20%,rgba(200,245,66,0.18),transparent_42%),linear-gradient(135deg,#102016,#07110c_60%)] p-5"
+    >
+      <p className="font-display text-4xl tracking-tight text-paper/25">
+        {CATEGORY_LABELS[category]}
+      </p>
+    </div>
   );
 }
 
@@ -494,13 +533,16 @@ function FeedSkeleton({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5">
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="space-y-3 rounded-xl border border-line p-5">
-          <div className="h-3 w-20 bg-white/8" />
-          <div className="h-6 w-full bg-white/8" />
-          <div className="h-6 w-4/5 bg-white/8" />
-          <div className="h-16 w-full bg-white/5" />
+        <div key={index} className="overflow-hidden rounded-xl border border-line">
+          <div className="aspect-[16/10] bg-white/5" />
+          <div className="space-y-3 p-5">
+            <div className="h-3 w-20 bg-white/8" />
+            <div className="h-6 w-full bg-white/8" />
+            <div className="h-6 w-4/5 bg-white/8" />
+            <div className="h-16 w-full bg-white/5" />
+          </div>
         </div>
       ))}
     </div>

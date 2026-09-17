@@ -2,6 +2,7 @@ export type ParsedItem = {
   title: string;
   link: string;
   summary: string;
+  imageUrl: string | null;
   publishedAt: string | null;
 };
 
@@ -36,6 +37,15 @@ function matchTag(block: string, tag: string) {
   return normal ? stripHtml(normal[1]) : "";
 }
 
+function matchRawTag(block: string, tag: string) {
+  const cdata = block.match(
+    new RegExp(`<${tag}(?:\\s[^>]*)?>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*</${tag}>`, "i"),
+  );
+  if (cdata) return cdata[1];
+  const normal = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i"));
+  return normal ? normal[1] : "";
+}
+
 function matchLink(block: string) {
   const href = block.match(/<link[^>]*href=["']([^"']+)["'][^>]*\/?>/i);
   if (href) return href[1].trim();
@@ -51,6 +61,74 @@ function matchDate(block: string) {
   if (!raw) return null;
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function looksLikeImage(url: string) {
+  return /\.(avif|bmp|gif|jpe?g|png|svg|webp)(\?|#|$)/i.test(url) || /\/image\//i.test(url);
+}
+
+function normalizeImageUrl(raw: string) {
+  const url = decodeXml(raw).trim();
+  if (!url) return null;
+  if (url.startsWith("//")) return `https:${url}`;
+  if (!/^https?:\/\//i.test(url)) return null;
+  return url;
+}
+
+function matchImage(block: string) {
+  const mediaContent = [
+    ...block.matchAll(/<media:content\b([^>]*)\/?>/gi),
+  ];
+  for (const match of mediaContent) {
+    const attrs = match[1];
+    const url = attrs.match(/\burl=["']([^"']+)["']/i)?.[1];
+    const medium = attrs.match(/\bmedium=["']([^"']+)["']/i)?.[1] ?? "";
+    const type = attrs.match(/\btype=["']([^"']+)["']/i)?.[1] ?? "";
+    const normalized = url ? normalizeImageUrl(url) : null;
+    if (
+      normalized &&
+      (medium === "image" || type.startsWith("image/") || looksLikeImage(normalized))
+    ) {
+      return normalized;
+    }
+  }
+
+  const mediaThumb = block.match(/<media:thumbnail\b([^>]*)\/?>/i);
+  if (mediaThumb) {
+    const url = mediaThumb[1].match(/\burl=["']([^"']+)["']/i)?.[1];
+    const normalized = url ? normalizeImageUrl(url) : null;
+    if (normalized) return normalized;
+  }
+
+  for (const match of block.matchAll(/<enclosure\b([^>]*)\/?>/gi)) {
+    const attrs = match[1];
+    const url = attrs.match(/\burl=["']([^"']+)["']/i)?.[1];
+    const type = attrs.match(/\btype=["']([^"']+)["']/i)?.[1] ?? "";
+    const normalized = url ? normalizeImageUrl(url) : null;
+    if (normalized && (type.startsWith("image/") || looksLikeImage(normalized))) {
+      return normalized;
+    }
+  }
+
+  const itunes = block.match(/<itunes:image\b([^>]*)\/?>/i);
+  if (itunes) {
+    const href = itunes[1].match(/\bhref=["']([^"']+)["']/i)?.[1];
+    const normalized = href ? normalizeImageUrl(href) : null;
+    if (normalized) return normalized;
+  }
+
+  const rawHtml =
+    matchRawTag(block, "content:encoded") ||
+    matchRawTag(block, "description") ||
+    matchRawTag(block, "content") ||
+    matchRawTag(block, "summary");
+  const img = rawHtml.match(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i);
+  if (img) {
+    const normalized = normalizeImageUrl(img[1]);
+    if (normalized) return normalized;
+  }
+
+  return null;
 }
 
 function splitBlocks(xml: string, tag: string) {
@@ -76,6 +154,7 @@ export function parseFeed(xml: string): ParsedItem[] {
         title,
         link,
         summary: summary.slice(0, 280),
+        imageUrl: matchImage(block),
         publishedAt: matchDate(block),
       };
     })

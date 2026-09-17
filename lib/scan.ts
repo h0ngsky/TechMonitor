@@ -107,6 +107,8 @@ export async function runNewsScan(): Promise<ScanSnapshot> {
   const sources = settled.map((entry) => entry.result);
   const items = dedupe(settled.flatMap((entry) => entry.items))
     .sort((a, b) => {
+      const hasImage = Number(Boolean(b.imageUrl)) - Number(Boolean(a.imageUrl));
+      if (hasImage !== 0) return hasImage;
       const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
       const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
       return tb - ta;
