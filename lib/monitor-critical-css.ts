@@ -39,37 +39,54 @@ img { max-width: 100%; height: auto; display: block; }
 .m-content { position: relative; z-index: 1; display: flex; min-height: 100%; flex-direction: column; }
 
 .m-top {
+  position: relative;
+  z-index: 40;
   border-bottom: 1px solid var(--m-line);
   padding: calc(0.75rem + env(safe-area-inset-top)) max(0.85rem, env(safe-area-inset-left)) 0.85rem max(0.85rem, env(safe-area-inset-right));
+  background: rgba(7,17,12,0.92);
 }
 .m-top-inner {
   margin: 0 auto; width: 100%; max-width: 1480px;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem;
+}
+.m-brand-wrap {
+  display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap;
 }
 .m-brand {
   font-family: "Syne", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
   font-weight: 800; letter-spacing: -0.05em; line-height: 1;
   font-size: clamp(1.7rem, 4vw, 2.2rem); margin: 0; color: #ffffff;
 }
+.m-tagline { color: var(--m-fog); font-size: 0.85rem; }
 .m-top-meta {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem 1rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem 0.85rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px; color: var(--m-fog);
+  position: relative; z-index: 41;
 }
+.m-status { display: inline-flex; align-items: center; gap: 6px; }
 .m-dot {
   width: 8px; height: 8px; border-radius: 999px; background: var(--m-signal);
   display: inline-block;
 }
 .m-lang {
-  display: inline-flex; align-items: stretch; border: 1px solid var(--m-line);
-  border-radius: 0.35rem; overflow: hidden; background: rgba(12,23,17,0.85);
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--m-line);
+  border-radius: 0.45rem;
+  background: rgba(12,23,17,0.95);
+  position: relative;
+  z-index: 50;
 }
 .m-lang-btn {
   appearance: none; border: 0; margin: 0; cursor: pointer;
-  padding: 0.35rem 0.7rem; min-height: 2.1rem;
+  min-width: 3.5rem; min-height: 2.75rem; padding: 0 0.95rem;
   background: transparent; color: var(--m-fog);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.04em;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(212,255,79,0.35);
+  user-select: none;
+  -webkit-user-select: none;
 }
 .m-lang-btn + .m-lang-btn { border-left: 1px solid var(--m-line); }
 .m-lang-btn.is-active {
@@ -77,8 +94,12 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .m-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-  height: 2.5rem; padding: 0 1rem; border: 0; border-radius: 0;
+  min-height: 2.75rem; height: 2.75rem; padding: 0 1rem; border: 0; border-radius: 0;
   background: var(--m-signal); color: var(--m-ink); font-weight: 700; cursor: pointer; font-size: 0.95rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(212,255,79,0.35);
+  user-select: none;
+  -webkit-user-select: none;
 }
 .m-btn:disabled { opacity: 0.7; cursor: wait; }
 @keyframes m-spin {
@@ -89,6 +110,7 @@ img { max-width: 100%; height: auto; display: block; }
 .m-ticker {
   overflow: hidden; border-bottom: 1px solid var(--m-line);
   background: var(--m-signal); color: var(--m-ink);
+  pointer-events: none;
 }
 .m-ticker-track {
   display: flex; width: max-content; gap: 1.75rem; padding: 0.55rem 0; white-space: nowrap;

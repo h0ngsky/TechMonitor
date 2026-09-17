@@ -1,12 +1,14 @@
 import { fetchFeedXml, parseFeed, type ParsedItem } from "@/lib/rss";
 import { BOARD_ORDER, NEWS_SOURCES, type NewsCategory } from "@/lib/sources";
 import { faviconForUrl, fetchOgImage } from "@/lib/og-image";
+import { translateTexts } from "@/lib/translate";
 
 export type NewsItem = ParsedItem & {
   id: string;
   sourceId: string;
   sourceName: string;
   category: NewsCategory;
+  titleZh: string | null;
 };
 
 export type SourceScanResult = {
@@ -70,6 +72,7 @@ async function scanSource(source: (typeof NEWS_SOURCES)[number]): Promise<{
       sourceId: source.id,
       sourceName: source.name,
       category: source.category,
+      titleZh: null,
     }));
     return {
       result: {
@@ -184,12 +187,28 @@ async function enrichImages(items: NewsItem[]) {
   return items;
 }
 
+async function enrichTranslations(items: NewsItem[]) {
+  const titles = items.map((item) => item.title);
+  try {
+    const translated = await translateTexts(titles, "zh");
+    items.forEach((item, index) => {
+      const zh = translated[index]?.trim();
+      item.titleZh = zh && zh !== item.title ? zh : /[\u3400-\u9fff]/.test(item.title) ? item.title : null;
+    });
+  } catch {
+    for (const item of items) {
+      item.titleZh = /[\u3400-\u9fff]/.test(item.title) ? item.title : null;
+    }
+  }
+  return items;
+}
+
 export async function runNewsScan(): Promise<ScanSnapshot> {
   const settled = await Promise.all(NEWS_SOURCES.map((source) => scanSource(source)));
   const sources = settled.map((entry) => entry.result);
-  const items = await enrichImages(
-    diversify(dedupe(settled.flatMap((entry) => entry.items))),
-  );
+  const mixed = diversify(dedupe(settled.flatMap((entry) => entry.items)));
+  const withImages = await enrichImages(mixed);
+  const items = await enrichTranslations(withImages);
 
   const snapshot: ScanSnapshot = {
     scannedAt: new Date().toISOString(),

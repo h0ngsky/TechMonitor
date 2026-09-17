@@ -15,7 +15,6 @@ import {
   MESSAGES,
   type Locale,
   intlLocale,
-  needsTranslation,
   readStoredLocale,
   relativeTime,
   storeLocale,
@@ -30,13 +29,19 @@ type NewsResponse = {
 
 const PER_BOARD = 6;
 
-function matchesQuery(item: NewsItem, query: string, titleMap: Record<string, string>) {
+function displayTitle(item: NewsItem, locale: Locale) {
+  if (locale === "zh") return item.titleZh || item.title;
+  return item.title;
+}
+
+function matchesQuery(item: NewsItem, query: string, locale: Locale) {
   if (!query) return true;
   const q = query.toLowerCase();
-  const translated = titleMap[item.id] || item.title;
+  const shown = displayTitle(item, locale).toLowerCase();
   return (
     item.title.toLowerCase().includes(q) ||
-    translated.toLowerCase().includes(q) ||
+    shown.includes(q) ||
+    (item.titleZh || "").toLowerCase().includes(q) ||
     item.summary.toLowerCase().includes(q) ||
     item.sourceName.toLowerCase().includes(q)
   );
@@ -59,8 +64,6 @@ export function MonitorDashboard({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [query, setQuery] = useState("");
-  const [titleMap, setTitleMap] = useState<Record<string, string>>({});
-  const [translating, setTranslating] = useState(false);
   const refreshingRef = useRef(false);
 
   const t = MESSAGES[locale];
@@ -68,7 +71,6 @@ export function MonitorDashboard({
 
   useEffect(() => {
     const stored = readStoredLocale();
-    // Hydrate from localStorage once after mount (SSR always starts as zh).
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional client preference restore
     if (stored) setLocale(stored);
   }, []);
@@ -88,7 +90,7 @@ export function MonitorDashboard({
     setRefreshing(true);
     setError(null);
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 45000);
+    const timer = window.setTimeout(() => controller.abort(), 60000);
     try {
       const response = await fetch("/api/news", {
         method: "POST",
@@ -158,59 +160,6 @@ export function MonitorDashboard({
   }, [load, locale]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-
-    async function run() {
-      const candidates = items.slice(0, 48);
-      const need = candidates.filter((item) => needsTranslation(item.title, locale));
-      if (need.length === 0) {
-        setTitleMap({});
-        setTranslating(false);
-        return;
-      }
-
-      setTranslating(true);
-      try {
-        const response = await fetch("/api/translate", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            to: locale,
-            texts: need.map((item) => item.title),
-          }),
-          signal: controller.signal,
-        });
-        const payload = (await response.json()) as {
-          ok: boolean;
-          translations?: string[];
-        };
-        if (!response.ok || !payload.ok || !payload.translations) {
-          throw new Error("translate failed");
-        }
-        if (cancelled) return;
-        const next: Record<string, string> = {};
-        need.forEach((item, index) => {
-          const translated = payload.translations?.[index];
-          if (translated && translated !== item.title) next[item.id] = translated;
-        });
-        setTitleMap(next);
-      } catch {
-        if (!cancelled) setTitleMap({});
-      } finally {
-        if (!cancelled) setTranslating(false);
-      }
-    }
-
-    void run();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [items, locale]);
-
   const q = query.trim();
 
   const boards = useMemo(
@@ -219,25 +168,23 @@ export function MonitorDashboard({
         key,
         label: categories[key],
         items: items
-          .filter((item) => item.category === key && matchesQuery(item, q, titleMap))
+          .filter((item) => item.category === key && matchesQuery(item, q, locale))
           .slice(0, PER_BOARD),
         total: items.filter((item) => item.category === key).length,
       })),
-    [items, q, categories, titleMap],
+    [items, q, categories, locale],
   );
 
   const tickerItems = items.slice(0, 16);
+  const translatedCount = items.filter((item) => Boolean(item.titleZh)).length;
 
   return (
     <div className="m-shell" data-locale={locale}>
       <header className="m-top">
         <div className="m-top-inner">
-          <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div className="m-brand-wrap">
             <h1 className="m-brand">MONITOR</h1>
-            <span style={{ color: "var(--m-fog)", fontSize: "0.85rem" }}>
-              {t.tagline}
-              {translating ? (locale === "zh" ? " · 翻译中" : " · Translating") : ""}
-            </span>
+            <span className="m-tagline">{t.tagline}</span>
           </div>
           <div className="m-top-meta">
             <div className="m-lang" role="group" aria-label={t.langAria}>
@@ -258,7 +205,7 @@ export function MonitorDashboard({
                 EN
               </button>
             </div>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="m-status">
               <span className="m-dot" />
               {refreshing ? t.scanningBtn : inWindow ? t.scanning : t.standby}
             </span>
@@ -281,14 +228,12 @@ export function MonitorDashboard({
       </header>
 
       {tickerItems.length > 0 ? (
-        <div className="m-ticker">
+        <div className="m-ticker" aria-hidden>
           <div className="m-ticker-track">
             {[...tickerItems, ...tickerItems].map((item, index) => (
               <span key={`${item.id}-${index}`} className="m-ticker-item">
                 <span className="m-ticker-cat">{categories[item.category]}</span>
-                <span className="m-ticker-title">
-                  {titleMap[item.id] || item.title}
-                </span>
+                <span className="m-ticker-title">{displayTitle(item, locale)}</span>
               </span>
             ))}
           </div>
@@ -325,6 +270,11 @@ export function MonitorDashboard({
                 {data?.okSourceCount ?? 0}/{data?.sourceCount ?? "—"}
               </strong>
             </span>
+            {locale === "zh" ? (
+              <span>
+                译文 <strong>{translatedCount}</strong>
+              </span>
+            ) : null}
           </div>
           <label className="m-search-wrap">
             <span className="sr-only">{t.searchAria}</span>
@@ -359,7 +309,7 @@ export function MonitorDashboard({
         ) : refreshing && !data ? (
           <p className="m-empty">{t.scanningEllipsis}</p>
         ) : (
-          <div className="m-boards" key={locale}>
+          <div className="m-boards">
             {boards.map((board) => (
               <section key={board.key} className="m-board">
                 <div className="m-board-head">
@@ -375,7 +325,7 @@ export function MonitorDashboard({
                         key={item.id}
                         item={item}
                         locale={locale}
-                        title={titleMap[item.id] || item.title}
+                        title={displayTitle(item, locale)}
                       />
                     ))}
                   </ul>
