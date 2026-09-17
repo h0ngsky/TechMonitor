@@ -10,6 +10,7 @@ import {
 import { BOARD_ORDER } from "@/lib/sources";
 import { proxiedImageUrl } from "@/lib/image";
 import type { NewsItem, ScanSnapshot } from "@/lib/scan";
+import { AmbientGlobeStage } from "@/components/ambient-globe-stage";
 import {
   CATEGORY_LABELS_I18N,
   MESSAGES,
@@ -64,7 +65,9 @@ export function MonitorDashboard({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [query, setQuery] = useState("");
+  const [ambient, setAmbient] = useState(false);
   const refreshingRef = useRef(false);
+  const idleTimerRef = useRef<number | null>(null);
 
   const t = MESSAGES[locale];
   const categories = CATEGORY_LABELS_I18N[locale];
@@ -78,6 +81,24 @@ export function MonitorDashboard({
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
   }, [locale]);
+
+  useEffect(() => {
+    const bump = () => {
+      setAmbient((on) => (on ? false : on));
+      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = window.setTimeout(() => setAmbient(true), 12000);
+    };
+    bump();
+    window.addEventListener("pointerdown", bump);
+    window.addEventListener("keydown", bump);
+    window.addEventListener("mousemove", bump);
+    return () => {
+      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+      window.removeEventListener("pointerdown", bump);
+      window.removeEventListener("keydown", bump);
+      window.removeEventListener("mousemove", bump);
+    };
+  }, []);
 
   const setLocalePreference = useCallback((next: Locale) => {
     setLocale(next);
@@ -179,7 +200,7 @@ export function MonitorDashboard({
   const translatedCount = items.filter((item) => Boolean(item.titleZh)).length;
 
   return (
-    <div className="m-shell" data-locale={locale}>
+    <div className={`m-shell${ambient ? " is-ambient" : ""}`} data-locale={locale}>
       <header className="m-top">
         <div className="m-top-inner">
           <div className="m-brand-wrap">
@@ -240,7 +261,14 @@ export function MonitorDashboard({
         </div>
       ) : null}
 
+      {items.length > 0 ? (
+        <AmbientGlobeStage items={items} locale={locale} />
+      ) : null}
+
       <main className="m-main">
+        <p className="m-desk-label">
+          {locale === "zh" ? "新闻看板 · Desk Feed" : "News boards · Desk Feed"}
+        </p>
         <div className="m-toolbar">
           <div className="m-stats">
             <span>
