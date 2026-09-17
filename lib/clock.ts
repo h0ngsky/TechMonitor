@@ -57,6 +57,7 @@ export function formatInZone(
 
 export function isInScanWindow(date = new Date()) {
   const { hour, minute } = getClockParts(date);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
   const minutes = hour * 60 + minute;
   return minutes >= WINDOW_START_MINUTES && minutes <= WINDOW_END_MINUTES;
 }
@@ -69,7 +70,10 @@ export function nextScanAt(
   },
 ) {
   const parts = getClockParts(date);
-  const minutes = parts.hour * 60 + parts.minute;
+  const hour = Number.isFinite(parts.hour) ? parts.hour : 0;
+  const minute = Number.isFinite(parts.minute) ? parts.minute : 0;
+  const second = Number.isFinite(parts.second) ? parts.second : 0;
+  const minutes = hour * 60 + minute;
 
   if (minutes > WINDOW_END_MINUTES) {
     return `${labels.tomorrow} 09:00`;
@@ -79,8 +83,9 @@ export function nextScanAt(
     return `${labels.today} 09:00`;
   }
 
-  const remainder = parts.minute % 30;
-  const add = remainder === 0 && parts.second === 0 ? 30 : 30 - remainder;
+  // Align to the next 15-minute mark (cron cadence).
+  const remainder = minute % 15;
+  const add = remainder === 0 && second === 0 ? 15 : 15 - remainder;
   const nextTotal = minutes + add;
   if (nextTotal > WINDOW_END_MINUTES) {
     return `${labels.tomorrow} 09:00`;

@@ -17,6 +17,7 @@ export const CATEGORY_LABELS: Record<NewsCategory, string> = {
 export const BOARD_ORDER: NewsCategory[] = ["tech", "ai", "finance", "health"];
 
 export const NEWS_SOURCES: NewsSource[] = [
+  // —— Tech ——
   {
     id: "techcrunch",
     name: "TechCrunch",
@@ -48,24 +49,38 @@ export const NEWS_SOURCES: NewsSource[] = [
     feedUrl: "https://feeds.bbci.co.uk/news/technology/rss.xml",
   },
   {
+    id: "nyt-tech",
+    name: "New York Times · Tech",
+    category: "tech",
+    feedUrl: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
+  },
+  {
+    id: "guardian-tech",
+    name: "The Guardian · Tech",
+    category: "tech",
+    feedUrl: "https://www.theguardian.com/uk/technology/rss",
+  },
+  {
+    id: "google-wsj-tech",
+    name: "WSJ · Tech",
+    category: "tech",
+    feedUrl:
+      "https://news.google.com/rss/search?q=site:wsj.com+(technology+OR+tech+OR+AI)&hl=en-US&gl=US&ceid=US:en",
+  },
+  {
+    id: "google-reuters-tech",
+    name: "Reuters · Tech",
+    category: "tech",
+    feedUrl:
+      "https://news.google.com/rss/search?q=site:reuters.com+(technology+OR+tech+OR+semiconductor)&hl=en-US&gl=US&ceid=US:en",
+  },
+
+  // —— AI ——
+  {
     id: "mit-tr",
     name: "MIT Technology Review",
     category: "ai",
     feedUrl: "https://www.technologyreview.com/feed/",
-  },
-  {
-    id: "google-ai",
-    name: "Google 新闻 · AI",
-    category: "ai",
-    feedUrl:
-      "https://news.google.com/rss/search?q=artificial+intelligence+OR+OpenAI+OR+Anthropic+OR+LLM&hl=en-US&gl=US&ceid=US:en",
-  },
-  {
-    id: "google-ai-zh",
-    name: "Google 新闻 · 人工智能",
-    category: "ai",
-    feedUrl:
-      "https://news.google.com/rss/search?q=%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD+OR+AI+OR+%E5%A4%A7%E6%A8%A1%E5%9E%8B&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
   },
   {
     id: "ars-ai",
@@ -73,6 +88,29 @@ export const NEWS_SOURCES: NewsSource[] = [
     category: "ai",
     feedUrl: "https://feeds.arstechnica.com/arstechnica/index",
   },
+  {
+    id: "google-ai",
+    name: "Google News · AI",
+    category: "ai",
+    feedUrl:
+      "https://news.google.com/rss/search?q=artificial+intelligence+OR+OpenAI+OR+Anthropic+OR+LLM&hl=en-US&gl=US&ceid=US:en",
+  },
+  {
+    id: "google-nyt-ai",
+    name: "NYT · AI",
+    category: "ai",
+    feedUrl:
+      "https://news.google.com/rss/search?q=site:nytimes.com+(artificial+intelligence+OR+OpenAI+OR+ChatGPT)&hl=en-US&gl=US&ceid=US:en",
+  },
+  {
+    id: "google-bloomberg-ai",
+    name: "Bloomberg · AI",
+    category: "ai",
+    feedUrl:
+      "https://news.google.com/rss/search?q=site:bloomberg.com+(artificial+intelligence+OR+OpenAI+OR+Anthropic)&hl=en-US&gl=US&ceid=US:en",
+  },
+
+  // —— Finance ——
   {
     id: "bbc-business",
     name: "BBC Business",
@@ -86,18 +124,53 @@ export const NEWS_SOURCES: NewsSource[] = [
     feedUrl: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069",
   },
   {
+    id: "cnbc-top",
+    name: "CNBC Top News",
+    category: "finance",
+    feedUrl: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114",
+  },
+  {
     id: "marketwatch",
     name: "MarketWatch",
     category: "finance",
     feedUrl: "https://feeds.content.dowjones.io/public/rss/mw_topstories",
   },
   {
-    id: "google-finance",
-    name: "Google 新闻 · 金融",
+    id: "nyt-business",
+    name: "New York Times · Business",
+    category: "finance",
+    feedUrl: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+  },
+  {
+    id: "google-wsj",
+    name: "Wall Street Journal",
     category: "finance",
     feedUrl:
-      "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+      "https://news.google.com/rss/search?q=site:wsj.com+(markets+OR+stocks+OR+economy+OR+Fed)&hl=en-US&gl=US&ceid=US:en",
   },
+  {
+    id: "google-bloomberg",
+    name: "Bloomberg",
+    category: "finance",
+    feedUrl:
+      "https://news.google.com/rss/search?q=site:bloomberg.com+(markets+OR+stocks+OR+economy)&hl=en-US&gl=US&ceid=US:en",
+  },
+  {
+    id: "google-ft",
+    name: "Financial Times",
+    category: "finance",
+    feedUrl:
+      "https://news.google.com/rss/search?q=site:ft.com+(markets+OR+economy+OR+finance)&hl=en-US&gl=US&ceid=US:en",
+  },
+  {
+    id: "google-reuters-biz",
+    name: "Reuters · Business",
+    category: "finance",
+    feedUrl:
+      "https://news.google.com/rss/search?q=site:reuters.com+(markets+OR+stocks+OR+economy)&hl=en-US&gl=US&ceid=US:en",
+  },
+
+  // —— Health ——
   {
     id: "bbc-health",
     name: "BBC Health",
@@ -105,11 +178,22 @@ export const NEWS_SOURCES: NewsSource[] = [
     feedUrl: "https://feeds.bbci.co.uk/news/health/rss.xml",
   },
   {
-    id: "google-health",
-    name: "Google 新闻 · 健康",
+    id: "nyt-health",
+    name: "New York Times · Health",
     category: "health",
-    feedUrl:
-      "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+    feedUrl: "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml",
+  },
+  {
+    id: "stat-news",
+    name: "STAT News",
+    category: "health",
+    feedUrl: "https://www.statnews.com/feed/",
+  },
+  {
+    id: "guardian-health",
+    name: "The Guardian · Health",
+    category: "health",
+    feedUrl: "https://www.theguardian.com/society/health/rss",
   },
   {
     id: "google-health-en",
@@ -119,9 +203,10 @@ export const NEWS_SOURCES: NewsSource[] = [
       "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=en-US&gl=US&ceid=US:en",
   },
   {
-    id: "stat-news",
-    name: "STAT News",
+    id: "google-reuters-health",
+    name: "Reuters · Health",
     category: "health",
-    feedUrl: "https://www.statnews.com/feed/",
+    feedUrl:
+      "https://news.google.com/rss/search?q=site:reuters.com+(health+OR+medicine+OR+FDA)&hl=en-US&gl=US&ceid=US:en",
   },
 ];

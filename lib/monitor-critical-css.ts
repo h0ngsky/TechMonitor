@@ -81,6 +81,10 @@ img { max-width: 100%; height: auto; display: block; }
   background: var(--m-signal); color: var(--m-ink); font-weight: 700; cursor: pointer; font-size: 0.95rem;
 }
 .m-btn:disabled { opacity: 0.7; cursor: wait; }
+@keyframes m-spin {
+  to { transform: rotate(360deg); }
+}
+.m-spin { animation: m-spin 0.9s linear infinite; }
 
 .m-ticker {
   overflow: hidden; border-bottom: 1px solid var(--m-line);

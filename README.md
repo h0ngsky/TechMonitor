@@ -2,6 +2,8 @@
 
 每天 **09:00–20:00（北京时间）** 对科技、AI、金融、健康公开新闻源做巡检，结果展示在这个网页上。
 
+覆盖 TechCrunch、BBC、纽约时报、华尔街日报、彭博、路透、金融时报、CNBC、The Verge、WIRED 等公开 RSS / Google News 聚合源。
+
 ## 本地运行
 
 ```bash

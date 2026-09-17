@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import {
   formatInZone,
@@ -56,6 +56,7 @@ export function MonitorDashboard({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [query, setQuery] = useState("");
+  const refreshingRef = useRef(false);
 
   const t = MESSAGES[locale];
   const categories = CATEGORY_LABELS_I18N[locale];
@@ -77,11 +78,17 @@ export function MonitorDashboard({
   }, []);
 
   const load = useCallback(async () => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
     setRefreshing(true);
+    setError(null);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 20000);
     try {
       const response = await fetch("/api/news", {
         method: "POST",
         cache: "no-store",
+        signal: controller.signal,
       });
       const payload = (await response.json()) as NewsResponse;
       if (!response.ok || !payload.ok || !payload.snapshot) {
@@ -91,10 +98,19 @@ export function MonitorDashboard({
       setInWindow(Boolean(payload.inWindow));
       setError(null);
     } catch (err) {
+      const aborted = err instanceof DOMException && err.name === "AbortError";
       setError(
-        err instanceof Error ? err.message : MESSAGES[locale].scanErrorFallback,
+        aborted
+          ? locale === "zh"
+            ? "巡检超时，请再试一次"
+            : "Scan timed out, try again"
+          : err instanceof Error
+            ? err.message
+            : MESSAGES[locale].scanErrorFallback,
       );
     } finally {
+      window.clearTimeout(timer);
+      refreshingRef.current = false;
       setRefreshing(false);
     }
   }, [locale]);
@@ -185,14 +201,20 @@ export function MonitorDashboard({
             </div>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <span className="m-dot" />
-              {inWindow ? t.scanning : t.standby}
+              {refreshing ? t.scanningBtn : inWindow ? t.scanning : t.standby}
             </span>
-            <span>{nowLabel}</span>
-            <span>
+            <span suppressHydrationWarning>{nowLabel}</span>
+            <span suppressHydrationWarning>
               {t.next} {nextLabel}
             </span>
-            <button type="button" className="m-btn" onClick={() => void load()} disabled={refreshing}>
-              <RefreshCw size={14} />
+            <button
+              type="button"
+              className="m-btn"
+              onClick={() => void load()}
+              disabled={refreshing}
+              aria-busy={refreshing}
+            >
+              <RefreshCw size={14} className={refreshing ? "m-spin" : undefined} />
               {refreshing ? t.scanningBtn : t.scanNow}
             </button>
           </div>

@@ -2,6 +2,7 @@ import { getLatestSnapshot } from "@/lib/scan";
 import { isInScanWindow } from "@/lib/clock";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET() {
   try {

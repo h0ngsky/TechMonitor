@@ -1,5 +1,5 @@
 import { fetchFeedXml, parseFeed, type ParsedItem } from "@/lib/rss";
-import { NEWS_SOURCES, type NewsCategory } from "@/lib/sources";
+import { BOARD_ORDER, NEWS_SOURCES, type NewsCategory } from "@/lib/sources";
 
 export type NewsItem = ParsedItem & {
   id: string;
@@ -27,18 +27,27 @@ export type ScanSnapshot = {
   items: NewsItem[];
 };
 
-const FEED_TIMEOUT_MS = 9000;
-const MAX_ITEMS = 90;
-const MAX_PER_SOURCE = 12;
+const FEED_TIMEOUT_MS = 5500;
+const MAX_ITEMS = 120;
+const MAX_PER_SOURCE = 8;
+const MAX_PER_CATEGORY = 30;
 
 declare global {
   var __newsMonitorSnapshot: ScanSnapshot | undefined;
+  var __newsMonitorScanPromise: Promise<ScanSnapshot> | undefined;
 }
 
 function hashId(value: string) {
   let h = 0;
   for (let i = 0; i < value.length; i += 1) h = (h * 31 + value.charCodeAt(i)) >>> 0;
   return h.toString(16);
+}
+
+const SPAM_TITLE =
+  /\b(promo code|promo codes|coupon code|coupon codes|discount code|discount codes|% off|save up to|free trial)\b/i;
+
+export function isSpamTitle(title: string) {
+  return SPAM_TITLE.test(title);
 }
 
 async function scanSource(source: (typeof NEWS_SOURCES)[number]): Promise<{
@@ -49,7 +58,9 @@ async function scanSource(source: (typeof NEWS_SOURCES)[number]): Promise<{
   const timer = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS);
   try {
     const xml = await fetchFeedXml(source.feedUrl, controller.signal);
-    const parsed = parseFeed(xml).slice(0, MAX_PER_SOURCE);
+    const parsed = parseFeed(xml)
+      .filter((item) => !isSpamTitle(item.title))
+      .slice(0, MAX_PER_SOURCE);
     const items: NewsItem[] = parsed.map((item) => ({
       ...item,
       id: hashId(`${source.id}:${item.link}`),
@@ -102,18 +113,41 @@ function dedupe(items: NewsItem[]) {
   return unique;
 }
 
+function byRecency(a: NewsItem, b: NewsItem) {
+  const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
+  const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
+  return tb - ta;
+}
+
+/** Fair mix: round-robin across sources inside each category. */
+function diversify(items: NewsItem[]) {
+  const picked: NewsItem[] = [];
+  for (const category of BOARD_ORDER) {
+    const pool = items.filter((item) => item.category === category).sort(byRecency);
+    const bySource = new Map<string, NewsItem[]>();
+    for (const item of pool) {
+      const list = bySource.get(item.sourceId) ?? [];
+      list.push(item);
+      bySource.set(item.sourceId, list);
+    }
+    const queues = [...bySource.values()];
+    let added = 0;
+    let index = 0;
+    while (added < MAX_PER_CATEGORY && queues.some((q) => q.length > 0)) {
+      const queue = queues[index % queues.length];
+      index += 1;
+      if (!queue.length) continue;
+      picked.push(queue.shift()!);
+      added += 1;
+    }
+  }
+  return picked.slice(0, MAX_ITEMS);
+}
+
 export async function runNewsScan(): Promise<ScanSnapshot> {
   const settled = await Promise.all(NEWS_SOURCES.map((source) => scanSource(source)));
   const sources = settled.map((entry) => entry.result);
-  const items = dedupe(settled.flatMap((entry) => entry.items))
-    .sort((a, b) => {
-      const hasImage = Number(Boolean(b.imageUrl)) - Number(Boolean(a.imageUrl));
-      if (hasImage !== 0) return hasImage;
-      const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
-      const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
-      return tb - ta;
-    })
-    .slice(0, MAX_ITEMS);
+  const items = diversify(dedupe(settled.flatMap((entry) => entry.items)));
 
   const snapshot: ScanSnapshot = {
     scannedAt: new Date().toISOString(),
@@ -124,6 +158,11 @@ export async function runNewsScan(): Promise<ScanSnapshot> {
     sources,
     items,
   };
+
+  const previous = globalThis.__newsMonitorSnapshot;
+  if (snapshot.itemCount === 0 && previous && previous.itemCount > 0) {
+    return previous;
+  }
 
   globalThis.__newsMonitorSnapshot = snapshot;
   return snapshot;
@@ -138,5 +177,21 @@ export async function getLatestSnapshot(force = false) {
     const age = Date.now() - Date.parse(globalThis.__newsMonitorSnapshot.scannedAt);
     if (age < 12 * 60 * 1000) return globalThis.__newsMonitorSnapshot;
   }
-  return runNewsScan();
+
+  if (globalThis.__newsMonitorScanPromise) {
+    return globalThis.__newsMonitorScanPromise;
+  }
+
+  const previous = globalThis.__newsMonitorSnapshot;
+  const scan = runNewsScan().finally(() => {
+    globalThis.__newsMonitorScanPromise = undefined;
+  });
+  globalThis.__newsMonitorScanPromise = scan;
+
+  try {
+    return await scan;
+  } catch {
+    if (previous && previous.itemCount > 0) return previous;
+    throw new Error("巡检失败");
+  }
 }
